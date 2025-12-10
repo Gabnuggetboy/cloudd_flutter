@@ -2,12 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'login_page.dart';
 
-class SignUpPage extends StatelessWidget {
+class SignUpPage extends StatefulWidget {
+  @override
+  State<SignUpPage> createState() => _SignUpPageState();
+}
+
+class _SignUpPageState extends State<SignUpPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  bool get _isFormFilled =>
+      _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
         child: Container(
           child: Column(
             children: <Widget>[
@@ -122,6 +141,8 @@ class SignUpPage extends StatelessWidget {
                                 ),
                               ),
                               child: TextField(
+                                controller: _emailController,
+                                onChanged: (_) => setState(() {}),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Email or Phone number",
@@ -132,6 +153,8 @@ class SignUpPage extends StatelessWidget {
                             Container(
                               padding: EdgeInsets.all(8.0),
                               child: TextField(
+                                controller: _passwordController,
+                                onChanged: (_) => setState(() {}),
                                 obscureText: true,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -175,10 +198,15 @@ class SignUpPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           gradient: LinearGradient(
-                            colors: [
-                              Color.fromRGBO(143, 148, 251, 1),
-                              Color.fromRGBO(143, 148, 251, .6),
-                            ],
+                            colors: _isFormFilled
+                                ? [
+                                    const Color(0xFF5B60C8),
+                                    const Color(0xFF3F438F),
+                                  ]
+                                : [
+                                    const Color.fromRGBO(143, 148, 251, 1),
+                                    const Color.fromRGBO(143, 148, 251, .6),
+                                  ],
                           ),
                         ),
                         child: Center(
@@ -193,7 +221,6 @@ class SignUpPage extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 70),
-
                   ],
                 ),
               ),
