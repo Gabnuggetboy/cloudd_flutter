@@ -2,10 +2,81 @@ import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'signup_page.dart';
 import 'user/home_page.dart';
-// import 'manager/ddhub_page.dart';
 import 'manager/manager_account_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  void showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
+    );
+  }
+
+  // ---------------------------------------
+  // LOGIN FUNCTION
+  // ---------------------------------------
+  Future<void> loginUser() async {
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      showMessage("Please fill all fields");
+      return;
+    }
+
+    try {
+      // Log in the user
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      User? user = userCredential.user;
+
+      if (user == null) {
+        showMessage("Unexpected error. Try again.");
+        return;
+      }
+
+      // Check if email is verified
+      if (!user.emailVerified) {
+        showMessage("Please verify your email before logging in.");
+        await FirebaseAuth.instance.signOut();
+        return;
+      }
+
+      // Get user role from Firestore
+      DocumentSnapshot snap = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(user.uid)
+          .get();
+
+      String role = snap["role"] ?? "User";
+
+      // Redirect based on role
+      if (role == "Manager") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ManagerAccountPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      showMessage(e.message ?? "Login failed");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -14,6 +85,7 @@ class LoginPage extends StatelessWidget {
         child: Container(
           child: Column(
             children: <Widget>[
+              // ---------- HEADER UI ----------
               Container(
                 height: 400,
                 decoration: BoxDecoration(
@@ -71,66 +143,6 @@ class LoginPage extends StatelessWidget {
                       ),
                     ),
                     Positioned(
-                      right: 12,
-                      top: 12,
-                      child: FadeInUp(
-                        duration: Duration(milliseconds: 1100),
-                        child: Row(
-                          children: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.white.withOpacity(0.85),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const ManagerAccountPage(),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                'Manager',
-                                style: TextStyle(
-                                  color: Color.fromRGBO(143, 148, 251, 1),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.white.withOpacity(0.85),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomePage(),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                'User',
-                                style: TextStyle(
-                                  color: Color.fromRGBO(143, 148, 251, 1),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
                       child: FadeInUp(
                         duration: Duration(milliseconds: 1600),
                         child: Container(
@@ -151,6 +163,8 @@ class LoginPage extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // ---------- LOGIN FIELDS ----------
               Padding(
                 padding: EdgeInsets.all(30.0),
                 child: Column(
@@ -175,6 +189,7 @@ class LoginPage extends StatelessWidget {
                         ),
                         child: Column(
                           children: <Widget>[
+                            // Email
                             Container(
                               padding: EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
@@ -185,6 +200,7 @@ class LoginPage extends StatelessWidget {
                                 ),
                               ),
                               child: TextField(
+                                controller: emailController,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Email",
@@ -192,9 +208,12 @@ class LoginPage extends StatelessWidget {
                                 ),
                               ),
                             ),
+
+                            // Password
                             Container(
                               padding: EdgeInsets.all(8.0),
                               child: TextField(
+                                controller: passwordController,
                                 obscureText: true,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -207,7 +226,10 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     ),
+
                     SizedBox(height: 10),
+
+                    // Sign Up Link
                     FadeInUp(
                       duration: Duration(milliseconds: 1850),
                       child: Padding(
@@ -230,32 +252,42 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     ),
+
                     SizedBox(height: 30),
+
+                    // ---------- LOGIN BUTTON ----------
                     FadeInUp(
                       duration: Duration(milliseconds: 1900),
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: LinearGradient(
-                            colors: [
-                              Color.fromRGBO(143, 148, 251, 1),
-                              Color.fromRGBO(143, 148, 251, .6),
-                            ],
+                      child: GestureDetector(
+                        onTap: () {
+                          loginUser();
+                        },
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            gradient: LinearGradient(
+                              colors: [
+                                Color.fromRGBO(143, 148, 251, 1),
+                                Color.fromRGBO(143, 148, 251, .6),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Login",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                          child: Center(
+                            child: Text(
+                              "Login",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
+
                     SizedBox(height: 70),
+
                     FadeInUp(
                       duration: Duration(milliseconds: 2000),
                       child: Text(

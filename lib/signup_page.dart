@@ -17,50 +17,52 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
 
   Future<void> registerUser() async {
-  String email = emailController.text.trim();
-  String password = passwordController.text.trim();
-  String confirm = confirmController.text.trim();
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+    String confirm = confirmController.text.trim();
 
-  if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
-    showMessage("Please fill all fields");
-    return;
+    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      showMessage("Please fill all fields");
+      return;
+    }
+
+    if (password != confirm) {
+      showMessage("Passwords do not match");
+      return;
+    }
+
+    try {
+      // Create user
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Send verification email
+      await userCredential.user!.sendEmailVerification();
+
+      // Save user in Firestore
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userCredential.user!.uid)
+          .set({
+        "email": email,
+        "created_at": DateTime.now(),
+        "email_verified": false,
+        "role": "User",
+      });
+
+      showMessage("Account created! Please verify your email.");
+
+    } on FirebaseAuthException catch (e) {
+      showMessage(e.message ?? "An error occurred");
+    }
   }
 
-  if (password != confirm) {
-    showMessage("Passwords do not match");
-    return;
+
+  void showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
+    );
   }
-
-  try {
-  // Create the user
-  UserCredential userCredential = await FirebaseAuth.instance
-      .createUserWithEmailAndPassword(email: email, password: password);
-
-  // Send email verification
-  await userCredential.user!.sendEmailVerification();
-
-  // Save user data in Firestore
-  await FirebaseFirestore.instance
-      .collection("users")
-      .doc(userCredential.user!.uid)
-      .set({
-    "email": email,
-    "created_at": DateTime.now(),
-    "email_verified": false, // optional
-  });
-
-  showMessage("Account created! Please verify your email.");
-} on FirebaseAuthException catch (e) {
-  showMessage(e.message ?? "An error occurred");
-}
-
-}
-
-void showMessage(String text) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(text)),
-  );
-}
 
   Widget build(BuildContext context) {
     return Scaffold(
