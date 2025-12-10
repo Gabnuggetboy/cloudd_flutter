@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:clouddflutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:clouddflutter/top_settings_title_widget.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
@@ -13,9 +13,9 @@ class NotificationsPage extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: TopSettingsTitleWidget(
-                showLogo: false,
+                showCloudd: false,
                 showSettings: true,
                 showNotifications: true,
               ),

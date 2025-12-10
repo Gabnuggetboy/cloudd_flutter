@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:clouddflutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:clouddflutter/top_settings_title_widget.dart';
 
 class TradingPage extends StatelessWidget {
   const TradingPage({super.key});
@@ -11,12 +11,12 @@ class TradingPage extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top bar
-              TopSettingsTitleWidget(showLogo: true, showSettings: true),
+              TopSettingsTitleWidget(showCloudd: true, showSettings: true),
 
               const SizedBox(height: 20),
 

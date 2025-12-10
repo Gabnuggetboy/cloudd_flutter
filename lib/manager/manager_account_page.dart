@@ -1,4 +1,4 @@
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:clouddflutter/top_settings_title_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:clouddflutter/manager/widgets/bottom_navigation_widget.dart';
 
@@ -15,8 +15,7 @@ class ManagerAccountPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TopSettingsTitleWidget( showLogo: false,
-              showSettings: true),
+              TopSettingsTitleWidget(showCloudd: false, showSettings: true),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

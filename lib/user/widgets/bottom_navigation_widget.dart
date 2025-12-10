@@ -3,6 +3,7 @@ import 'package:clouddflutter/user/notification_page.dart';
 import 'package:clouddflutter/user/home_page.dart';
 import 'package:clouddflutter/user/trading_page.dart';
 import 'package:clouddflutter/user/user_account_page.dart';
+import 'package:clouddflutter/user/camera_page.dart';
 
 class BottomNavigationWidget extends StatelessWidget {
   final Function(int)? onIconTap;
@@ -99,11 +100,11 @@ class BottomNavigationWidget extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.camera_alt, size: cameraIconSize),
                 onPressed: () {
-                  // onIconTap?.call(2);
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(builder: (context) => const TradingPage()),
-                  // );
+                  onIconTap?.call(2);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CameraPage()),
+                  );
                 },
               ),
               Text(cameraLabel, style: TextStyle(fontSize: 12)),

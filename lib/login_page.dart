@@ -5,12 +5,31 @@ import 'user/home_page.dart';
 // import 'manager/ddhub_page.dart';
 import 'manager/manager_account_page.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  bool get _isFormFilled =>
+      _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
         child: Container(
           child: Column(
             children: <Widget>[
@@ -89,7 +108,8 @@ class LoginPage extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const ManagerAccountPage(),
+                                    builder: (context) =>
+                                        const ManagerAccountPage(),
                                   ),
                                 );
                               },
@@ -185,6 +205,8 @@ class LoginPage extends StatelessWidget {
                                 ),
                               ),
                               child: TextField(
+                                controller: _emailController,
+                                onChanged: (_) => setState(() {}),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Email or Phone number",
@@ -195,6 +217,8 @@ class LoginPage extends StatelessWidget {
                             Container(
                               padding: EdgeInsets.all(8.0),
                               child: TextField(
+                                controller: _passwordController,
+                                onChanged: (_) => setState(() {}),
                                 obscureText: true,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -211,7 +235,7 @@ class LoginPage extends StatelessWidget {
                     FadeInUp(
                       duration: Duration(milliseconds: 1850),
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 300, top: 10),
+                        padding: const EdgeInsets.only(left: 200, top: 10),
                         child: GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -238,10 +262,15 @@ class LoginPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           gradient: LinearGradient(
-                            colors: [
-                              Color.fromRGBO(143, 148, 251, 1),
-                              Color.fromRGBO(143, 148, 251, .6),
-                            ],
+                            colors: _isFormFilled
+                                ? [
+                                    const Color(0xFF5B60C8),
+                                    const Color(0xFF3F438F),
+                                  ]
+                                : [
+                                    const Color.fromRGBO(143, 148, 251, 1),
+                                    const Color.fromRGBO(143, 148, 251, .6),
+                                  ],
                           ),
                         ),
                         child: Center(
@@ -255,13 +284,16 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(height: 70),
+                    SizedBox(height: 20),
                     FadeInUp(
                       duration: Duration(milliseconds: 2000),
-                      child: Text(
-                        "Forgot Password?",
-                        style: TextStyle(
-                          color: Color.fromRGBO(143, 148, 251, 1),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 100.0),
+                        child: Text(
+                          "Forgot Password?",
+                          style: TextStyle(
+                            color: Color.fromRGBO(143, 148, 251, 1),
+                          ),
                         ),
                       ),
                     ),

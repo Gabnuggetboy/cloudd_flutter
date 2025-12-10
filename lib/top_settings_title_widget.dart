@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:clouddflutter/settings_page.dart';
 
 class TopSettingsTitleWidget extends StatelessWidget {
-  final bool showLogo;
+  final bool showCloudd;
   final bool showSettings;
   final bool showNotifications;
-  final String logoText;
+  final bool showDDHub;
+  final bool showManageExperiences;
+  final String clouddText;
   final String notificationsText;
+  final String ddHubText;
+  final String manageExperiencesText;
   final Color logoColor;
   final double logoFontSize;
   final VoidCallback? onSettingsTap;
@@ -15,11 +19,15 @@ class TopSettingsTitleWidget extends StatelessWidget {
 
   const TopSettingsTitleWidget({
     Key? key,
-    this.showLogo = true,
+    this.showCloudd = true,
+    this.showDDHub = false,
     this.showSettings = true,
     this.showNotifications = false,
-    this.logoText = 'CLOUDD',
+    this.showManageExperiences = false,
+    this.clouddText = 'CLOUDD',
+    this.ddHubText = 'DD Hub',
     this.notificationsText = 'Notifications',
+    this.manageExperiencesText = 'Manage Experiences',
     this.logoColor = const Color(0xFFA020F0),
     this.logoFontSize = 26,
     this.onSettingsTap,
@@ -32,9 +40,9 @@ class TopSettingsTitleWidget extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        showLogo
+        showCloudd
             ? Text(
-                logoText,
+                clouddText,
                 style: TextStyle(
                   fontSize: logoFontSize,
                   fontWeight: FontWeight.w700,
@@ -44,6 +52,24 @@ class TopSettingsTitleWidget extends StatelessWidget {
             : showNotifications
             ? Text(
                 notificationsText,
+                style: TextStyle(
+                  fontSize: logoFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: logoColor,
+                ),
+              )
+            : showDDHub
+            ? Text(
+                ddHubText,
+                style: TextStyle(
+                  fontSize: logoFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: logoColor,
+                ),
+              )
+            : showManageExperiences
+            ? Text(
+                manageExperiencesText,
                 style: TextStyle(
                   fontSize: logoFontSize,
                   fontWeight: FontWeight.w700,

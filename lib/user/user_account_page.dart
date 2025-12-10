@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:clouddflutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:clouddflutter/top_settings_title_widget.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -15,7 +15,7 @@ class AccountPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TopSettingsTitleWidget(showLogo: false, showSettings: true),
+              TopSettingsTitleWidget(showCloudd: false, showSettings: true),
               const SizedBox(height: 20),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
