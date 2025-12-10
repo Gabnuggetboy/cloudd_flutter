@@ -22,18 +22,27 @@ class _DDHubPageState extends State<DDHubPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         leading: leadingIcon != null
-            ? Icon(leadingIcon, color: Colors.black54)
+            ? Icon(leadingIcon, color: Theme.of(context).iconTheme.color)
             : null,
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
               )
             : null,
         trailing: trailing,
@@ -51,19 +60,19 @@ class _DDHubPageState extends State<DDHubPage> {
           hintText: 'Search',
           prefixIcon: const Icon(Icons.search),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).colorScheme.surface,
           contentPadding: const EdgeInsets.symmetric(vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.purple),
+            borderSide: BorderSide(color: Theme.of(context).primaryColor),
           ),
         ),
       ),

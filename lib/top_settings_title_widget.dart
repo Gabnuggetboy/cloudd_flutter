@@ -11,11 +11,8 @@ class TopSettingsTitleWidget extends StatelessWidget {
   final String notificationsText;
   final String ddHubText;
   final String manageExperiencesText;
-  final Color logoColor;
   final double logoFontSize;
   final VoidCallback? onSettingsTap;
-  final bool isDarkMode;
-  final Function(bool)? onThemeChanged;
 
   const TopSettingsTitleWidget({
     Key? key,
@@ -28,15 +25,14 @@ class TopSettingsTitleWidget extends StatelessWidget {
     this.ddHubText = 'DD Hub',
     this.notificationsText = 'Notifications',
     this.manageExperiencesText = 'Manage Experiences',
-    this.logoColor = const Color(0xFFA020F0),
     this.logoFontSize = 26,
     this.onSettingsTap,
-    this.isDarkMode = false,
-    this.onThemeChanged,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final logoColor = Theme.of(context).primaryColor;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -85,10 +81,7 @@ class TopSettingsTitleWidget extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SettingsPage(
-                            isDarkMode: isDarkMode,
-                            onThemeChanged: onThemeChanged ?? (_) {},
-                          ),
+                          builder: (context) => const SettingsPage(),
                         ),
                       );
                     },

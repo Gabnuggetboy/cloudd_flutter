@@ -15,13 +15,10 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
-            
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TopSettingsTitleWidget(
@@ -41,7 +38,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  color: const Color(0xFFF1F1F1),
+                  color: Theme.of(context).colorScheme.surface,
                 ),
                 child: Row(
                   children: [
@@ -72,28 +69,32 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
                             'Category',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black54,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
+                          const SizedBox(height: 4),
+                          const Text(
                             'Experience #1',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
                             'Last Updated 30+ Days ago',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black54,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ],

@@ -32,7 +32,7 @@ class BottomNavigationWidget extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 10),
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -61,7 +61,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(ddHubLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                ddHubLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
           Column(
@@ -89,7 +95,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(experiencesLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                experiencesLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
           Column(
@@ -113,7 +125,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(accountLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                accountLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
         ],

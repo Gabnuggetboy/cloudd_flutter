@@ -8,7 +8,6 @@ class NotificationsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -68,7 +67,7 @@ class NotificationItem extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: Theme.of(context).colorScheme.surface,
               shape: BoxShape.circle,
             ),
           ),
@@ -79,16 +78,19 @@ class NotificationItem extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
+              children: [
+                const Text(
                   "Message Title",
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
                   "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
                   "Cras ut feugiat lacus.",
-                  style: TextStyle(fontSize: 14, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                 ),
               ],
             ),
