@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/settings_page.dart';
+import 'package:cloudd_flutter/settings_page.dart';
 
 class TopSettingsTitleWidget extends StatelessWidget {
   final bool showLogo;

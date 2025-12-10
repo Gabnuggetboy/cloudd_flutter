@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/user/notification_page.dart';
-import 'package:clouddflutter/user/home_page.dart';
-import 'package:clouddflutter/user/trading_page.dart';
-import 'package:clouddflutter/user/user_account_page.dart';
+import 'package:cloudd_flutter/user/notification_page.dart';
+import 'package:cloudd_flutter/user/home_page.dart';
+import 'package:cloudd_flutter/user/trading_page.dart';
+import 'package:cloudd_flutter/user/user_account_page.dart';
 
 class BottomNavigationWidget extends StatelessWidget {
   final Function(int)? onIconTap;

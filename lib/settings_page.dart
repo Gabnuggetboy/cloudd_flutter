@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/login_page.dart';
+import 'package:cloudd_flutter/login_page.dart';
 
 class SettingsPage extends StatefulWidget {
   final bool isDarkMode;

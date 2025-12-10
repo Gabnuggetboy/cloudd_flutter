@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/manager/ddhub_page.dart';
-import 'package:clouddflutter/manager/experiences_page.dart';
-import 'package:clouddflutter/manager/manager_account_page.dart';
+import 'package:cloudd_flutter/manager/ddhub_page.dart';
+import 'package:cloudd_flutter/manager/experiences_page.dart';
+import 'package:cloudd_flutter/manager/manager_account_page.dart';
 
 class BottomNavigationWidget extends StatelessWidget {
   final Function(int)? onIconTap;

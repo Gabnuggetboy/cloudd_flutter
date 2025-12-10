@@ -1,6 +1,6 @@
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:cloudd_flutter/user/widgets/top_settings_title_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/manager/widgets/bottom_navigation_widget.dart';
+import 'package:cloudd_flutter/manager/widgets/bottom_navigation_widget.dart';
 
 class ManagerAccountPage extends StatelessWidget {
   const ManagerAccountPage({super.key});

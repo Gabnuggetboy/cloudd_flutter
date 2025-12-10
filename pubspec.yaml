@@ -1,4 +1,4 @@
-name: clouddflutter
+name: cloudd_flutter
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -40,6 +40,9 @@ dependencies:
   flex_color_picker: ^3.8.0
   image_picker: ^1.2.1
   intl: ^0.20.2
+  firebase_core: 3.15.2
+  cloud_firestore: ^5.2.0
+  firebase_auth: ^5.1.4
 
 
 

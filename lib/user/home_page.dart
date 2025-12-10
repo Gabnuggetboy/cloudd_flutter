@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
+import 'package:cloudd_flutter/user/widgets/top_settings_title_widget.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
