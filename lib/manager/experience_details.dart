@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
@@ -49,6 +50,14 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   }
 
   Future<void> _save() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("User not logged in")));
+      return;
+    }
+
     final ref = FirebaseFirestore.instance.collection("Experiences");
 
     if (editing) {
@@ -63,6 +72,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         "name": _nameController.text,
         "category": selectedCategory,
         "enabled": true,
+        "managerId": currentUser.uid,
         "last_updated": Timestamp.now(),
       });
     }
@@ -82,8 +92,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
           children: [
             TextField(
               controller: _nameController,
-              decoration:
-                  const InputDecoration(labelText: "Experience Name"),
+              decoration: const InputDecoration(labelText: "Experience Name"),
             ),
 
             const SizedBox(height: 16),
@@ -92,8 +101,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               value: selectedCategory,
               decoration: const InputDecoration(labelText: "Category"),
               items: categories
-                  .map((c) =>
-                      DropdownMenuItem(value: c, child: Text(c)))
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
               onChanged: (value) {
                 setState(() {

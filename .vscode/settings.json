@@ -1,4 +1,5 @@
 {
     "dart.flutterSdkPath": "~/Internship/DigitalDream/FlutterSDK/flutter",
-    "cmake.sourceDirectory": "C:/Users/junji/Documents/GitHub/cloudd_flutter/linux"
+    "cmake.sourceDirectory": "C:/Users/junji/Documents/GitHub/cloudd_flutter/linux",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
