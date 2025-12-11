@@ -14,6 +14,9 @@ class ExperienceDetailsPage extends StatefulWidget {
 class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final TextEditingController _nameController = TextEditingController();
   String? selectedCategory;
+  String? selectedDevice;
+
+
 
   final List<String> categories = [
     "Adventure",
@@ -21,6 +24,14 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     "Entertainment",
     "Learning",
     "Wellness",
+  ];
+
+  final List<String> devices = [
+    "iCube",
+    "iRig",
+    "iTiles",
+    "iCreate",
+    "Storytime",
   ];
 
   bool enabled = true;
@@ -45,12 +56,28 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     _nameController.text = data["name"];
     selectedCategory = data["category"];
     enabled = data["enabled"];
+    selectedDevice = data["devices"];
+
+
 
     setState(() {});
   }
 
   Future<void> _save() async {
     final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (_nameController.text.trim().isEmpty ||
+        selectedCategory == null ||
+        selectedDevice == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please fill in all fields before continuing."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return; // Stop save
+    }
+
     if (currentUser == null) {
       ScaffoldMessenger.of(
         context,
@@ -66,6 +93,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         "category": selectedCategory,
         "enabled": enabled,
         "last_updated": Timestamp.now(),
+        "device": selectedDevice
       });
     } else {
       await ref.add({
@@ -74,11 +102,48 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         "enabled": true,
         "managerId": currentUser.uid,
         "last_updated": Timestamp.now(),
+        "device": selectedDevice,
       });
     }
 
     Navigator.pop(context);
   }
+
+   Future<void> _deleteExperience() async {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: const Text(
+          "Are you sure you want to delete this experience?"
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Close dialog
+            child: const Text("No"),
+          ),
+          TextButton(
+            onPressed: () async {
+              // Perform delete
+              await FirebaseFirestore.instance
+                  .collection("Experiences")
+                  .doc(widget.experienceId)
+                  .delete();
+
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Back to experiences page
+            },
+            child: const Text(
+              "Yes",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -110,8 +175,41 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               },
             ),
 
-            const Spacer(),
+       const SizedBox(height: 16),
+            
+            DropdownButtonFormField<String>(
+              value: selectedDevice,
+              decoration: const InputDecoration(labelText: "Device"),
+              items: devices
+                  .map((c) =>
+                      DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  selectedDevice = value;
+                });
+              },
+            ),
 
+            const Spacer(),
+            if (editing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    onPressed: _deleteExperience,
+                    child: const Text(
+                      "Delete",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             SizedBox(
               width: double.infinity,
               height: 56,
