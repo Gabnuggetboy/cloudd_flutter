@@ -4,7 +4,6 @@ import 'login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
@@ -17,7 +16,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
   @override
-
   Future<void> registerUser() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
@@ -45,24 +43,16 @@ class _SignUpPageState extends State<SignUpPage> {
       await FirebaseFirestore.instance
           .collection("users")
           .doc(userCredential.user!.uid)
-          .set({
-        "email": email,
-        "created_at": DateTime.now(),
-        "role": "User",
-      });
+          .set({"email": email, "created_at": DateTime.now(), "role": "User"});
 
       showMessage("Account created! Please verify your email.");
-
     } on FirebaseAuthException catch (e) {
       showMessage(e.message ?? "An error occurred");
     }
   }
 
-
   void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -74,7 +64,7 @@ class _SignUpPageState extends State<SignUpPage> {
           child: Column(
             children: <Widget>[
               Container(
-                height: 400,
+                height: 270,
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/images/background.png'),
@@ -151,7 +141,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.all(30.0),
+                padding: EdgeInsets.all(20.0),
                 child: Column(
                   children: <Widget>[
                     FadeInUp(
@@ -174,7 +164,6 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                         child: Column(
                           children: <Widget>[
-                            
                             // Email
                             Container(
                               padding: EdgeInsets.all(8.0),
@@ -229,16 +218,15 @@ class _SignUpPageState extends State<SignUpPage> {
                                 ),
                               ),
                             ),
-
                           ],
-                        )
+                        ),
                       ),
                     ),
-                    SizedBox(height: 10),
+                    SizedBox(height: 5),
                     FadeInUp(
                       duration: Duration(milliseconds: 1850),
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 300, top: 10),
+                        padding: const EdgeInsets.only(left: 200, top: 10),
                         child: GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -257,7 +245,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 30),
+                    SizedBox(height: 15),
                     FadeInUp(
                       duration: Duration(milliseconds: 1900),
                       child: GestureDetector(
@@ -287,8 +275,19 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 70),
-
+                    SizedBox(height: 10),
+                    FadeInUp(
+                      duration: Duration(milliseconds: 2000),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 100.0),
+                        child: Text(
+                          "",
+                          style: TextStyle(
+                            color: Color.fromRGBO(143, 148, 251, 1),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

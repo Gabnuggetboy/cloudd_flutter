@@ -30,111 +30,116 @@ class BottomNavigationWidget extends StatelessWidget {
     // Get current route name
     final currentRoute = ModalRoute.of(context)?.settings.name;
 
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 10),
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Image.asset(
-                  'assets/images/ddhub_icon.png',
-                  width: ddHubIconSize,
-                  height: ddHubIconSize,
+    return SafeArea(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Image.asset(
+                    'assets/images/ddhub_icon.png',
+                    width: ddHubIconSize,
+                    height: ddHubIconSize,
+                  ),
+                  onPressed: () {
+                    onIconTap?.call(0);
+                    // Only navigate if not already on DDHubPage
+                    if (context.widget.runtimeType != DDHubPage) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const DDHubPage(),
+                          transitionDuration: Duration.zero,
+                          reverseTransitionDuration: Duration.zero,
+                        ),
+                      );
+                    }
+                  },
                 ),
-                onPressed: () {
-                  onIconTap?.call(0);
-                  // Only navigate if not already on DDHubPage
-                  if (context.widget.runtimeType != DDHubPage) {
-                    Navigator.pushReplacement(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const DDHubPage(),
-                        transitionDuration: Duration.zero,
-                        reverseTransitionDuration: Duration.zero,
-                      ),
-                    );
-                  }
-                },
-              ),
-              Text(
-                ddHubLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                Text(
+                  ddHubLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Image.asset(
-                  'assets/images/experiences_icon.png',
-                  width: experiencesIconSize,
-                  height: experiencesIconSize,
+              ],
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Image.asset(
+                    'assets/images/experiences_icon.png',
+                    width: experiencesIconSize,
+                    height: experiencesIconSize,
+                  ),
+                  onPressed: () {
+                    onIconTap?.call(2);
+                    // Only navigate if not already on ExperiencesPage
+                    if (context.widget.runtimeType != ExperiencesPage) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const ExperiencesPage(),
+                          transitionDuration: Duration.zero,
+                          reverseTransitionDuration: Duration.zero,
+                        ),
+                      );
+                    }
+                  },
                 ),
-                onPressed: () {
-                  onIconTap?.call(2);
-                  // Only navigate if not already on ExperiencesPage
-                  if (context.widget.runtimeType != ExperiencesPage) {
-                    Navigator.pushReplacement(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const ExperiencesPage(),
-                        transitionDuration: Duration.zero,
-                        reverseTransitionDuration: Duration.zero,
-                      ),
-                    );
-                  }
-                },
-              ),
-              Text(
-                experiencesLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                Text(
+                  experiencesLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(Icons.person, size: accountIconSize),
-                onPressed: () {
-                  onIconTap?.call(3);
-                  // Only navigate if not already on ManagerAccountPage
-                  if (context.widget.runtimeType != ManagerAccountPage) {
-                    Navigator.pushReplacement(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const ManagerAccountPage(),
-                        transitionDuration: Duration.zero,
-                        reverseTransitionDuration: Duration.zero,
-                      ),
-                    );
-                  }
-                },
-              ),
-              Text(
-                accountLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
+              ],
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.person, size: accountIconSize),
+                  onPressed: () {
+                    onIconTap?.call(3);
+                    // Only navigate if not already on ManagerAccountPage
+                    if (context.widget.runtimeType != ManagerAccountPage) {
+                      Navigator.pushReplacement(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const ManagerAccountPage(),
+                          transitionDuration: Duration.zero,
+                          reverseTransitionDuration: Duration.zero,
+                        ),
+                      );
+                    }
+                  },
                 ),
-              ),
-            ],
-          ),
-        ],
+                Text(
+                  accountLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
