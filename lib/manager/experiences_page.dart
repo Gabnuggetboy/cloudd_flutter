@@ -119,7 +119,6 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection("Experiences")
-                      .orderBy("last_updated", descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
