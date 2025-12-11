@@ -2,6 +2,7 @@ import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/manager/widgets/bottom_navigation_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'experience_details.dart';
 
 class ExperiencesPage extends StatefulWidget {
@@ -114,18 +115,36 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                 ),
               ),
               */
-
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection("Experiences")
+                      .where(
+                        "managerId",
+                        isEqualTo: FirebaseAuth.instance.currentUser?.uid,
+                      )
                       .snapshots(),
                   builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(child: Text("Error: ${snapshot.error}"));
+                    }
+
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final docs = snapshot.data!.docs;
+                    // Sort the docs by last_updated in the app
+                    final docs = snapshot.data!.docs.toList();
+                    docs.sort((a, b) {
+                      final aTime =
+                          (a.data() as Map<String, dynamic>)["last_updated"]
+                              as Timestamp?;
+                      final bTime =
+                          (b.data() as Map<String, dynamic>)["last_updated"]
+                              as Timestamp?;
+                      if (aTime == null || bTime == null) return 0;
+                      return bTime.compareTo(aTime); // descending order
+                    });
 
                     if (docs.isEmpty) {
                       return const Center(
@@ -170,8 +189,11 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                     alignment: Alignment.topRight,
                                     child: Padding(
                                       padding: EdgeInsets.all(4.0),
-                                      child: Icon(Icons.star,
-                                          color: Colors.white, size: 16),
+                                      child: Icon(
+                                        Icons.star,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -180,16 +202,16 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
 
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         data["category"],
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.color,
+                                          color: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -205,10 +227,9 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                         "Last Updated: ${data["last_updated"].toDate().toString().substring(0, 10)}",
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.color,
+                                          color: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
                                         ),
                                       ),
                                     ],
@@ -222,9 +243,9 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                         .collection("Experiences")
                                         .doc(experienceId)
                                         .update({
-                                      "enabled": value,
-                                      "last_updated": Timestamp.now(),
-                                    });
+                                          "enabled": value,
+                                          "last_updated": Timestamp.now(),
+                                        });
                                   },
                                 ),
                               ],

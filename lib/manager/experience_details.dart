@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
@@ -14,6 +15,8 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final TextEditingController _nameController = TextEditingController();
   String? selectedCategory;
   String? selectedDevice;
+
+
 
   final List<String> categories = [
     "Adventure",
@@ -52,13 +55,16 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     final data = doc.data()!;
     _nameController.text = data["name"];
     selectedCategory = data["category"];
-    selectedDevice = data["devices"];
     enabled = data["enabled"];
+    selectedDevice = data["devices"];
+
+
 
     setState(() {});
   }
 
   Future<void> _save() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     if (_nameController.text.trim().isEmpty ||
         selectedCategory == null ||
@@ -72,31 +78,38 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       return; // Stop save
     }
 
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("User not logged in")));
+      return;
+    }
+
     final ref = FirebaseFirestore.instance.collection("Experiences");
 
     if (editing) {
       await ref.doc(widget.experienceId).update({
         "name": _nameController.text,
         "category": selectedCategory,
-        "device": selectedDevice,
         "enabled": enabled,
         "last_updated": Timestamp.now(),
+        "device": selectedDevice
       });
     } else {
       await ref.add({
         "name": _nameController.text,
         "category": selectedCategory,
-        "device": selectedDevice,
         "enabled": true,
+        "managerId": currentUser.uid,
         "last_updated": Timestamp.now(),
+        "device": selectedDevice,
       });
     }
 
     Navigator.pop(context);
   }
 
-
-  Future<void> _deleteExperience() async {
+   Future<void> _deleteExperience() async {
   showDialog(
     context: context,
     builder: (context) {
@@ -132,7 +145,6 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   );
 }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,8 +157,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
           children: [
             TextField(
               controller: _nameController,
-              decoration:
-                  const InputDecoration(labelText: "Experience Name"),
+              decoration: const InputDecoration(labelText: "Experience Name"),
             ),
 
             const SizedBox(height: 16),
@@ -155,8 +166,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               value: selectedCategory,
               decoration: const InputDecoration(labelText: "Category"),
               items: categories
-                  .map((c) =>
-                      DropdownMenuItem(value: c, child: Text(c)))
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
               onChanged: (value) {
                 setState(() {
@@ -165,7 +175,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               },
             ),
 
-            const SizedBox(height: 16),
+       const SizedBox(height: 16),
             
             DropdownButtonFormField<String>(
               value: selectedDevice,

@@ -97,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             children: <Widget>[
               Container(
-                height: 400,
+                height: 270,
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/images/background.png'),
@@ -235,7 +235,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.all(30.0),
+                padding: EdgeInsets.all(20.0),
                 child: Column(
                   children: <Widget>[
                     FadeInUp(
@@ -294,7 +294,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 10),
+                    SizedBox(height: 5),
                     FadeInUp(
                       duration: Duration(milliseconds: 1850),
                       child: Padding(
@@ -317,7 +317,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 30),
+                    SizedBox(height: 15),
                     FadeInUp(
                       duration: Duration(milliseconds: 1900),
                       child: GestureDetector(
@@ -352,7 +352,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 20),
+                    SizedBox(height: 10),
                     FadeInUp(
                       duration: Duration(milliseconds: 2000),
                       child: Padding(
