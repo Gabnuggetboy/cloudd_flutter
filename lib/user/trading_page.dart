@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:cloudd_flutter/user/widgets/top_settings_title_widget.dart';
+import 'package:cloudd_flutter/top_settings_title_widget.dart';
 
 class TradingPage extends StatelessWidget {
   const TradingPage({super.key});
@@ -8,15 +8,14 @@ class TradingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top bar
-              TopSettingsTitleWidget(showLogo: true, showSettings: true),
+              TopSettingsTitleWidget(showCloudd: true, showSettings: true),
 
               const SizedBox(height: 20),
 
@@ -33,11 +32,11 @@ class TradingPage extends StatelessWidget {
                 height: 110,
                 child: Row(
                   children: [
-                    _collectionBox(),
+                    _collectionBox(context),
                     const SizedBox(width: 10),
-                    _collectionBox(),
+                    _collectionBox(context),
                     const SizedBox(width: 10),
-                    _collectionBox(),
+                    _collectionBox(context),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Align(
@@ -45,7 +44,9 @@ class TradingPage extends StatelessWidget {
                         child: Text(
                           "See All",
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -63,7 +64,7 @@ class TradingPage extends StatelessWidget {
                 height: 45,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.black),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: const Row(
                   children: [
@@ -104,7 +105,7 @@ class TradingPage extends StatelessWidget {
                 ),
                 itemCount: 8, // change as needed
                 itemBuilder: (context, index) {
-                  return _browseBox();
+                  return _browseBox(context);
                 },
               ),
             ],
@@ -120,21 +121,21 @@ class TradingPage extends StatelessWidget {
 
   // --- Widgets ---
 
-  Widget _collectionBox() {
+  Widget _collectionBox(BuildContext context) {
     return Container(
       width: 80,
       height: 100,
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
       ),
     );
   }
 
-  Widget _browseBox() {
+  Widget _browseBox(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(10),
       ),
     );

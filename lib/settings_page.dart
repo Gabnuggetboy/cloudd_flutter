@@ -1,38 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:cloudd_flutter/login_page.dart';
+import 'package:cloudd_flutter/theme_provider.dart';
 
-class SettingsPage extends StatefulWidget {
-  final bool isDarkMode;
-  final Function(bool) onThemeChanged;
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
 
-  const SettingsPage({
-    super.key,
-    required this.isDarkMode,
-    required this.onThemeChanged,
-  });
-
-  @override
-  _SettingsPageState createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
-  late bool darkMode;
-
-  @override
-  void initState() {
-    super.initState();
-    darkMode = widget.isDarkMode;
-  }
-
-  Widget buildTile(String title, {Widget? trailing, VoidCallback? onTap}) {
+  Widget buildTile(
+    BuildContext context,
+    String title, {
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
         trailing: trailing,
         onTap: onTap,
       ),
@@ -41,6 +34,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -49,63 +44,69 @@ class _SettingsPageState extends State<SettingsPage> {
             Navigator.pop(context);
           },
         ),
-        title: const Text(
+        title: Text(
           "Settings",
-          style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Theme.of(context).primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "Personalization",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 10),
-
             buildTile(
+              context,
               "Dark Mode",
               trailing: Switch(
-                value: darkMode,
+                value: themeProvider.isDarkMode,
                 onChanged: (value) {
-                  setState(() => darkMode = value);
-                  widget.onThemeChanged(value);
+                  themeProvider.setTheme(value);
                 },
               ),
             ),
-            buildTile("Appearance"),
-            buildTile("Display Language"),
-
+            buildTile(context, "Appearance"),
+            buildTile(context, "Display Language"),
             const SizedBox(height: 25),
-
-            const Text(
+            Text(
               "Notifications and Activity",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 10),
-
             buildTile(
+              context,
               "Notifications",
               trailing: Switch(value: false, onChanged: (_) {}),
             ),
-            buildTile("Sounds"),
-            buildTile("Reminders"),
-
+            buildTile(context, "Sounds"),
+            buildTile(context, "Reminders"),
             const SizedBox(height: 25),
-
-            const Text(
+            Text(
               "Account",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 10),
-
-            buildTile("Switch Account"),
+            buildTile(context, "Switch Account"),
             buildTile(
+              context,
               "Logout",
               onTap: () {
                 Navigator.pushReplacement(
@@ -117,7 +118,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ListTile(

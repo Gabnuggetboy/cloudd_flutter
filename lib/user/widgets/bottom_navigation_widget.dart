@@ -3,6 +3,7 @@ import 'package:cloudd_flutter/user/notification_page.dart';
 import 'package:cloudd_flutter/user/home_page.dart';
 import 'package:cloudd_flutter/user/trading_page.dart';
 import 'package:cloudd_flutter/user/user_account_page.dart';
+import 'package:cloudd_flutter/user/camera_page.dart';
 
 class BottomNavigationWidget extends StatelessWidget {
   final Function(int)? onIconTap;
@@ -19,7 +20,7 @@ class BottomNavigationWidget extends StatelessWidget {
   final String accountLabel;
 
   const BottomNavigationWidget({
-    Key? key,
+    super.key,
     this.onIconTap,
     required this.context,
     this.homeIconSize = 40,
@@ -32,7 +33,7 @@ class BottomNavigationWidget extends StatelessWidget {
     this.cameraLabel = 'Camera',
     this.notificationLabel = 'Notifications',
     this.accountLabel = 'Account',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +42,7 @@ class BottomNavigationWidget extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 10),
-      color: Colors.white,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -66,7 +67,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(homeLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                homeLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
           Column(
@@ -90,7 +97,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(tradingLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                tradingLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
           Column(
@@ -99,14 +112,20 @@ class BottomNavigationWidget extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.camera_alt, size: cameraIconSize),
                 onPressed: () {
-                  // onIconTap?.call(2);
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(builder: (context) => const TradingPage()),
-                  // );
+                  onIconTap?.call(2);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CameraPage()),
+                  );
                 },
               ),
-              Text(cameraLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                cameraLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
           Column(
@@ -130,7 +149,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(notificationLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                notificationLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
           Column(
@@ -154,7 +179,13 @@ class BottomNavigationWidget extends StatelessWidget {
                   }
                 },
               ),
-              Text(accountLabel, style: TextStyle(fontSize: 12)),
+              Text(
+                accountLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
             ],
           ),
         ],

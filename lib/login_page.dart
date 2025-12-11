@@ -7,26 +7,36 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
+
+  bool get _isFormFilled =>
+      _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
 
   // ---------------------------------------
   // LOGIN FUNCTION
   // ---------------------------------------
   Future<void> loginUser() async {
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       showMessage("Please fill all fields");
@@ -82,10 +92,10 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
         child: Container(
           child: Column(
             children: <Widget>[
-              // ---------- HEADER UI ----------
               Container(
                 height: 400,
                 decoration: BoxDecoration(
@@ -143,6 +153,67 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     Positioned(
+                      right: 12,
+                      top: 12,
+                      child: FadeInUp(
+                        duration: Duration(milliseconds: 1100),
+                        child: Row(
+                          children: [
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.85),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ManagerAccountPage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'Manager',
+                                style: TextStyle(
+                                  color: Color.fromRGBO(143, 148, 251, 1),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.85),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomePage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'User',
+                                style: TextStyle(
+                                  color: Color.fromRGBO(143, 148, 251, 1),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
                       child: FadeInUp(
                         duration: Duration(milliseconds: 1600),
                         child: Container(
@@ -163,8 +234,6 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
               ),
-
-              // ---------- LOGIN FIELDS ----------
               Padding(
                 padding: EdgeInsets.all(30.0),
                 child: Column(
@@ -189,7 +258,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         child: Column(
                           children: <Widget>[
-                            // Email
                             Container(
                               padding: EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
@@ -200,20 +268,20 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               child: TextField(
-                                controller: emailController,
+                                controller: _emailController,
+                                onChanged: (_) => setState(() {}),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
-                                  hintText: "Email",
+                                  hintText: "Email or Phone number",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
                                 ),
                               ),
                             ),
-
-                            // Password
                             Container(
                               padding: EdgeInsets.all(8.0),
                               child: TextField(
-                                controller: passwordController,
+                                controller: _passwordController,
+                                onChanged: (_) => setState(() {}),
                                 obscureText: true,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -226,14 +294,11 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-
                     SizedBox(height: 10),
-
-                    // Sign Up Link
                     FadeInUp(
                       duration: Duration(milliseconds: 1850),
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 300, top: 10),
+                        padding: const EdgeInsets.only(left: 200, top: 10),
                         child: GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -252,10 +317,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-
                     SizedBox(height: 30),
-
-                    // ---------- LOGIN BUTTON ----------
                     FadeInUp(
                       duration: Duration(milliseconds: 1900),
                       child: GestureDetector(
@@ -267,10 +329,15 @@ class _LoginPageState extends State<LoginPage> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             gradient: LinearGradient(
-                              colors: [
-                                Color.fromRGBO(143, 148, 251, 1),
-                                Color.fromRGBO(143, 148, 251, .6),
-                              ],
+                              colors: _isFormFilled
+                                  ? [
+                                      const Color(0xFF5B60C8),
+                                      const Color(0xFF3F438F),
+                                    ]
+                                  : [
+                                      const Color.fromRGBO(143, 148, 251, 1),
+                                      const Color.fromRGBO(143, 148, 251, .6),
+                                    ],
                             ),
                           ),
                           child: Center(
@@ -285,15 +352,16 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-
-                    SizedBox(height: 70),
-
+                    SizedBox(height: 20),
                     FadeInUp(
                       duration: Duration(milliseconds: 2000),
-                      child: Text(
-                        "Forgot Password?",
-                        style: TextStyle(
-                          color: Color.fromRGBO(143, 148, 251, 1),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 100.0),
+                        child: Text(
+                          "Forgot Password?",
+                          style: TextStyle(
+                            color: Color.fromRGBO(143, 148, 251, 1),
+                          ),
                         ),
                       ),
                     ),
