@@ -46,7 +46,6 @@ class _SignUpPageState extends State<SignUpPage> {
           .set({
         "email": email,
         "created_at": DateTime.now(),
-        "email_verified": false,
         "role": "User",
       });
 
