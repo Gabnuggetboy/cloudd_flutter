@@ -5,6 +5,7 @@ import 'user/home_page.dart';
 import 'manager/manager_account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloudd_flutter/webapp_access_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -203,6 +204,31 @@ class _LoginPageState extends State<LoginPage> {
                               },
                               child: Text(
                                 'User',
+                                style: TextStyle(
+                                  color: Color.fromRGBO(143, 148, 251, 1),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                             TextButton(
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.85),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const WebAppAccessPage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'Web App Access',
                                 style: TextStyle(
                                   color: Color.fromRGBO(143, 148, 251, 1),
                                   fontWeight: FontWeight.w600,
