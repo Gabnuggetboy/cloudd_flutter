@@ -5,6 +5,7 @@ import 'user/home_page.dart';
 import 'manager/manager_account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -357,12 +358,22 @@ class _LoginPageState extends State<LoginPage> {
                       duration: Duration(milliseconds: 2000),
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 100.0),
-                        child: Text(
-                          "Forgot Password?",
-                          style: TextStyle(
-                            color: Color.fromRGBO(143, 148, 251, 1),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                            );
+                          },
+                          child: Text(
+                            "Forgot Password?",
+                            style: TextStyle(
+                              color: Color.fromRGBO(143, 148, 251, 1),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
+                        )
+
                       ),
                     ),
                   ],

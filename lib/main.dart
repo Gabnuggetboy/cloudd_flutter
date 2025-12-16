@@ -5,6 +5,7 @@ import 'package:cloudd_flutter/login_page.dart';
 import 'package:cloudd_flutter/theme_provider.dart';
 import 'package:cloudd_flutter/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloudd_flutter/navigation_service.dart';
 
 void main() async {
   // Ensure Flutter widgets are initialized
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
+          navigatorKey: NavigationService.navigatorKey,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.isDarkMode
