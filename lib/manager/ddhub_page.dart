@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloudd_flutter/top_settings_title_widget.dart';
+import 'package:cloudd_flutter/manager/widgets/bottom_navigation_widget.dart';
 
 class DDHubPage extends StatefulWidget {
   const DDHubPage({super.key});
@@ -8,23 +10,71 @@ class DDHubPage extends StatefulWidget {
 }
 
 class _DDHubPageState extends State<DDHubPage> {
-  @override
-  Widget build(BuildContext context) {
-    return const Placeholder();
-  }
-}
+  final TextEditingController _searchController = TextEditingController();
 
- Widget buildTile(String title, {Widget? trailing, VoidCallback? onTap}) {
+  Widget _buildTile(
+    String title, {
+    String? subtitle,
+    IconData? leadingIcon,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        leading: leadingIcon != null
+            ? Icon(leadingIcon, color: Theme.of(context).iconTheme.color)
+            : null,
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              )
+            : null,
         trailing: trailing,
         onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search',
+          prefixIcon: const Icon(Icons.search),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Theme.of(context).primaryColor),
+          ),
+        ),
       ),
     );
   }
@@ -32,84 +82,68 @@ class _DDHubPageState extends State<DDHubPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text(
-          "Settings",
-          style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 40),
+            TopSettingsTitleWidget(showCloudd: false, showDDHub: true),
+            const SizedBox(height: 10),
+
+            // 🔍 Search
+            _buildSearchBar(),
+
+            // MultiDD
+            _buildTile("MultiDD", leadingIcon: Icons.apps_rounded),
+
+            const SizedBox(height: 10),
+
+            // DD Devices
             const Text(
-              "Personalization",
+              "DD Devices",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 10),
 
-            buildTile(
-              "Dark Mode",
+            _buildTile(
+              "icube lv1",
+              subtitle: "iCUBE-1234567",
+              leadingIcon: Icons.devices_other,
             ),
-            buildTile("Appearance"),
-            buildTile("Display Language"),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              "Notifications and Activity",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            _buildTile(
+              "drawing lv3",
+              subtitle: "iCREATE-1234567",
+              leadingIcon: Icons.devices_other,
             ),
-            const SizedBox(height: 10),
 
-            buildTile(
-              "Notifications",
-              trailing: Switch(value: false, onChanged: (_) {}),
-            ),
-            buildTile("Sounds"),
-            buildTile("Reminders"),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              "Account",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-
-            buildTile("Switch Account"),
-            buildTile(
-              "Logout",
-            ),
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListTile(
-                title: const Text(
-                  "Delete Account",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red,
-                  ),
-                ),
+            // + Add new DD device
+            Opacity(
+              opacity: 0.5,
+              child: _buildTile(
+                "+ Add New DD Device",
+                leadingIcon: Icons.add,
+                onTap: null,
               ),
             ),
+
+            const SizedBox(height: 10),
+
+            // Custom Activities
+            const Text(
+              "Custom Activities",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+
+            _buildTile("Rock Climbing", leadingIcon: Icons.fitness_center),
           ],
         ),
       ),
+      bottomNavigationBar: BottomNavigationWidget(
+        context: context,
+        onIconTap: (index) {},
+      ),
     );
   }
-
+}

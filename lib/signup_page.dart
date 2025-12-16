@@ -1,8 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'login_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SignUpPage extends StatelessWidget {
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
+
+  @override
+  _SignUpPageState createState() => _SignUpPageState();
+}
+
+class _SignUpPageState extends State<SignUpPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmController = TextEditingController();
+  @override
+  Future<void> registerUser() async {
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+    String confirm = confirmController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      showMessage("Please fill all fields");
+      return;
+    }
+
+    if (password != confirm) {
+      showMessage("Passwords do not match");
+      return;
+    }
+
+    try {
+      // Create user
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Send verification email
+      await userCredential.user!.sendEmailVerification();
+
+      // Save user in Firestore
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userCredential.user!.uid)
+          .set({"email": email, "created_at": DateTime.now(), "role": "User"});
+
+      showMessage("Account created! Please verify your email.");
+    } on FirebaseAuthException catch (e) {
+      showMessage(e.message ?? "An error occurred");
+    }
+  }
+
+  void showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -12,7 +64,7 @@ class SignUpPage extends StatelessWidget {
           child: Column(
             children: <Widget>[
               Container(
-                height: 400,
+                height: 270,
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/images/background.png'),
@@ -89,7 +141,7 @@ class SignUpPage extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.all(30.0),
+                padding: EdgeInsets.all(20.0),
                 child: Column(
                   children: <Widget>[
                     FadeInUp(
@@ -112,6 +164,7 @@ class SignUpPage extends StatelessWidget {
                         ),
                         child: Column(
                           children: <Widget>[
+                            // Email
                             Container(
                               padding: EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
@@ -122,16 +175,27 @@ class SignUpPage extends StatelessWidget {
                                 ),
                               ),
                               child: TextField(
+                                controller: emailController,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
-                                  hintText: "Email or Phone number",
+                                  hintText: "Email",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
                                 ),
                               ),
                             ),
+
+                            // Password
                             Container(
                               padding: EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color.fromRGBO(143, 148, 251, 1),
+                                  ),
+                                ),
+                              ),
                               child: TextField(
+                                controller: passwordController,
                                 obscureText: true,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -140,15 +204,29 @@ class SignUpPage extends StatelessWidget {
                                 ),
                               ),
                             ),
+
+                            // Confirm Password (NO bottom border)
+                            Container(
+                              padding: EdgeInsets.all(8.0),
+                              child: TextField(
+                                controller: confirmController,
+                                obscureText: true,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: "Confirm Password",
+                                  hintStyle: TextStyle(color: Colors.grey[700]),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 10),
+                    SizedBox(height: 5),
                     FadeInUp(
                       duration: Duration(milliseconds: 1850),
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 300, top: 10),
+                        padding: const EdgeInsets.only(left: 200, top: 10),
                         child: GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -167,33 +245,49 @@ class SignUpPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    SizedBox(height: 30),
+                    SizedBox(height: 15),
                     FadeInUp(
                       duration: Duration(milliseconds: 1900),
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: LinearGradient(
-                            colors: [
-                              Color.fromRGBO(143, 148, 251, 1),
-                              Color.fromRGBO(143, 148, 251, .6),
-                            ],
+                      child: GestureDetector(
+                        onTap: () {
+                          registerUser();
+                        },
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            gradient: LinearGradient(
+                              colors: [
+                                Color.fromRGBO(143, 148, 251, 1),
+                                Color.fromRGBO(143, 148, 251, .6),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Sign Up",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                          child: Center(
+                            child: Text(
+                              "Sign Up",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(height: 70),
-
+                    SizedBox(height: 10),
+                    FadeInUp(
+                      duration: Duration(milliseconds: 2000),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 100.0),
+                        child: Text(
+                          "",
+                          style: TextStyle(
+                            color: Color.fromRGBO(143, 148, 251, 1),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

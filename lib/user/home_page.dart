@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:clouddflutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:clouddflutter/user/widgets/top_settings_title_widget.dart';
+import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
+import 'package:cloudd_flutter/top_settings_title_widget.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -8,14 +8,13 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TopSettingsTitleWidget(showLogo: true, showSettings: true),
+              TopSettingsTitleWidget(showCloudd: true, showSettings: true),
 
               const SizedBox(height: 10),
 
@@ -35,7 +34,10 @@ class HomePage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 15),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black, width: 1.3),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor,
+                    width: 1.3,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Row(
@@ -81,9 +83,9 @@ class HomePage extends StatelessWidget {
                   (index) => Container(
                     width: 65,
                     height: 65,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFE8E0E0),
+                      color: Theme.of(context).colorScheme.surface,
                     ),
                   ),
                 ),

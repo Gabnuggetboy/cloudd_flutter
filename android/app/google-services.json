@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "129420691472",
+    "project_id": "ddapp-c89cb",
+    "storage_bucket": "ddapp-c89cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:129420691472:android:bb231e3aa2be8524a7a295",
+        "android_client_info": {
+          "package_name": "com.example.cloudd_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVoG6M9M87ZYuHcOpMXKKKwRKHTRbhXLg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
