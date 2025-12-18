@@ -30,7 +30,6 @@ class ManagerAccountPage extends StatelessWidget {
                       ).iconTheme.color?.withOpacity(0.6),
                     ),
                   ),
-
                   const SizedBox(width: 15),
 
                   // User info

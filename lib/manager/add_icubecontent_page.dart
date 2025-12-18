@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class iCubeTestPage extends StatefulWidget {
-  const iCubeTestPage({super.key});
+  final bool selectionMode;
+  final String? managerId;
+  final String? experienceId;
+
+  const iCubeTestPage({
+    super.key,
+    this.selectionMode = false,
+    this.managerId,
+    this.experienceId,
+  });
 
   @override
   State<iCubeTestPage> createState() => _iCubeTestPageState();
@@ -16,7 +26,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   bool isLoading = true;
   String? errorMessage;
   String? runningContent;
-  Set<String> selectedForPlayback = {};
+  Set<String> selectedContents = {};
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
 
@@ -79,8 +89,49 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   @override
   void initState() {
     super.initState();
-    _loadRunningFromPrefs();
+    if (!widget.selectionMode) {
+      _loadRunningFromPrefs();
+    }
+    if (widget.selectionMode && widget.managerId != null) {
+      _loadSelectedContents();
+    }
     fetchContents();
+  }
+
+  Future<void> _loadSelectedContents() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection("ManagerContentSelections")
+          .doc("${widget.managerId}_icube_${widget.experienceId ?? 'temp'}")
+          .get();
+
+      if (doc.exists && doc.data()?["selectedContents"] != null) {
+        setState(() {
+          selectedContents = Set<String>.from(doc.data()!["selectedContents"]);
+        });
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _saveSelectedContents() async {
+    if (widget.managerId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection("ManagerContentSelections")
+          .doc("${widget.managerId}_icube_${widget.experienceId ?? 'temp'}")
+          .set({
+            "managerId": widget.managerId,
+            "device": "iCube",
+            "experienceId": widget.experienceId,
+            "selectedContents": selectedContents.toList(),
+            "lastUpdated": Timestamp.now(),
+          });
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> _loadRunningFromPrefs() async {
@@ -100,7 +151,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   Future<void> clearRunningState() async {
     setState(() {
       runningContent = null;
-      selectedForPlayback.clear();
     });
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -165,8 +215,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
       }
     } catch (e) {
       setState(() {
-        errorMessage =
-            'Please connect to Digital_Dream_2_5G wifi.';
+        errorMessage = 'Please connect to Digital_Dream_2_5G wifi.';
         isLoading = false;
       });
     }
@@ -174,7 +223,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
 
   Future<void> launchContent(String contentName) async {
     try {
-      // If another content is currently running, stop it first
       if (runningContent != null && runningContent != contentName) {
         final stopping = await stopContent(runningContent!);
         if (!stopping) {
@@ -188,12 +236,8 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         }
       }
 
-      // clear any selection overlays before launching
-      if (selectedForPlayback.isNotEmpty) {
-        setState(() => selectedForPlayback.clear());
-      }
       final response = await http
-          .get(Uri.parse('$apiBaseUrl/launch/$contentName')) 
+          .get(Uri.parse('$apiBaseUrl/launch/$contentName'))
           .timeout(requestTimeout);
 
       if (response.statusCode == 200) {
@@ -238,8 +282,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         if (data['status'] == 'success') {
           setState(() {
             runningContent = null;
-            // hide any play overlay for this content
-            selectedForPlayback.remove(contentName);
           });
           try {
             final prefs = await SharedPreferences.getInstance();
@@ -268,7 +310,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
             backgroundColor: Colors.red,
           ),
         );
-
         return false;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -291,17 +332,29 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('iCube Test'),
+        title: Text(
+          widget.selectionMode ? 'Add iCube Content' : 'iCube Test',
+        ),
         backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
         foregroundColor: Colors.white,
+        actions: widget.selectionMode
+            ? [
+                TextButton(
+                  onPressed: () async {
+                    await _saveSelectedContents();
+                    Navigator.pop(context, selectedContents.toList());
+                  },
+                  child: Text(
+                    'Done',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ]
+            : null,
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.deferToChild,
-        onTap: () {
-          if (selectedForPlayback.isNotEmpty) {
-            setState(() => selectedForPlayback.clear());
-          }
-        },
+        onTap: () {},
         child: Stack(
           children: [
             isLoading
@@ -391,7 +444,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
                       ),
                     ],
                   ),
-            if (runningContent != null)
+            if (!widget.selectionMode && runningContent != null)
               Positioned(
                 bottom: 16,
                 left: 16,
@@ -490,7 +543,9 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
           itemCount: groupedContents[tag]!.length,
           itemBuilder: (context, index) {
             final content = groupedContents[tag]![index];
-            final isSelected = selectedForPlayback.contains(content['name']);
+            final isSelected = widget.selectionMode
+                ? selectedContents.contains(content['name'])
+                : false;
             final isRunning = runningContent == content['name'];
 
             return _buildContentCard(content, isSelected, isRunning);
@@ -510,18 +565,26 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
 
     return GestureDetector(
       onTap: () {
-        setState(() {
-          if (isSelected) {
-            // If already selected, launch the content
-            selectedForPlayback.remove(contentName);
-            if (!isRunning) {
-              launchContent(contentName);
+        if (widget.selectionMode) {
+          // In selection mode, toggle selection
+          setState(() {
+            if (selectedContents.contains(contentName)) {
+              selectedContents.remove(contentName);
+            } else {
+              // Allow multiple selections: just add
+              selectedContents.add(contentName);
             }
-          } else {
-            //to show the play button on first tap
-            selectedForPlayback.add(contentName);
-          }
-        });
+          });
+        } else {
+          // Original play/stop functionality
+          setState(() {
+            if (isSelected) {
+              if (!isRunning) {
+                launchContent(contentName);
+              }
+            }
+          });
+        }
       },
       child: Card(
         elevation: 4,
@@ -561,8 +624,20 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
                         );
                       },
                     ),
-                    // Show play button if selected or running
-                    if (isSelected || isRunning)
+                    // Show selection overlay in selection mode
+                    if (widget.selectionMode && isSelected)
+                      Container(
+                        color: Colors.black.withOpacity(0.5),
+                        child: Center(
+                          child: Icon(
+                            Icons.check_circle,
+                            color: Colors.white,
+                            size: 48,
+                          ),
+                        ),
+                      ),
+                    // Show play button if selected or running (non-selection mode)
+                    if (!widget.selectionMode && (isSelected || isRunning))
                       Container(
                         color: Colors.black.withOpacity(0.5),
                         child: Center(

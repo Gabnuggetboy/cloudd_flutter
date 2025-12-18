@@ -155,8 +155,25 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                     return ListView.builder(
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
-                        final data = docs[index];
-                        final experienceId = data.id;
+                        final doc = docs[index];
+                        final experienceId = doc.id;
+                        final dataMap =
+                            (doc.data() as Map<String, dynamic>?) ?? {};
+
+                        final boothsCount =
+                            (dataMap['booths'] as List?)?.length ?? 0;
+                        final name =
+                            (dataMap['name'] as String?) ??
+                            'Untitled Experience';
+                        final enabled = (dataMap['enabled'] as bool?) ?? false;
+                        final lastUpdatedTimestamp =
+                            dataMap['last_updated'] as Timestamp?;
+                        final lastUpdatedString = lastUpdatedTimestamp != null
+                            ? lastUpdatedTimestamp
+                                  .toDate()
+                                  .toString()
+                                  .substring(0, 10)
+                            : 'Unknown';
 
                         return GestureDetector(
                           onTap: () {
@@ -206,7 +223,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        data["category"],
+                                        "$boothsCount Booths",
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Theme.of(
@@ -216,7 +233,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        data["name"],
+                                        name,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
@@ -224,7 +241,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        "Last Updated: ${data["last_updated"].toDate().toString().substring(0, 10)}",
+                                        "Last Updated: $lastUpdatedString",
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Theme.of(
@@ -237,7 +254,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                 ),
 
                                 Switch(
-                                  value: data["enabled"],
+                                  value: enabled,
                                   onChanged: (value) {
                                     FirebaseFirestore.instance
                                         .collection("Experiences")

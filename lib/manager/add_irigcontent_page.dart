@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class IrigTestPage extends StatefulWidget {
-  const IrigTestPage({super.key});
+  final bool selectionMode;
+  final String? managerId;
+  final String? experienceId;
+
+  const IrigTestPage({
+    super.key,
+    this.selectionMode = false,
+    this.managerId,
+    this.experienceId,
+  });
 
   @override
   State<IrigTestPage> createState() => _IrigTestPageState();
@@ -15,13 +25,53 @@ class _IrigTestPageState extends State<IrigTestPage> {
   bool isLoading = true;
   String? errorMessage;
   String? runningContent;
+  Set<String> selectedContents = {};
 
   final Duration requestTimeout = const Duration(seconds: 10);
 
   @override
   void initState() {
     super.initState();
+    if (widget.selectionMode && widget.managerId != null) {
+      _loadSelectedContents();
+    }
     fetchContents();
+  }
+
+  Future<void> _loadSelectedContents() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection("ManagerContentSelections")
+          .doc("${widget.managerId}_irig_${widget.experienceId ?? 'temp'}")
+          .get();
+
+      if (doc.exists && doc.data()?["selectedContents"] != null) {
+        setState(() {
+          selectedContents = Set<String>.from(doc.data()!["selectedContents"]);
+        });
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _saveSelectedContents() async {
+    if (widget.managerId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection("ManagerContentSelections")
+          .doc("${widget.managerId}_irig_${widget.experienceId ?? 'temp'}")
+          .set({
+            "managerId": widget.managerId,
+            "device": "iRig",
+            "experienceId": widget.experienceId,
+            "selectedContents": selectedContents.toList(),
+            "lastUpdated": Timestamp.now(),
+          });
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> fetchContents() async {
@@ -48,9 +98,7 @@ class _IrigTestPageState extends State<IrigTestPage> {
       }
     } catch (e) {
       setState(() {
-        errorMessage =
-            'Please connect to Digital_Dream_2_5G wifi.';
-
+        errorMessage = 'Please connect to Digital_Dream_2_5G wifi.';
         isLoading = false;
       });
     }
@@ -140,9 +188,23 @@ class _IrigTestPageState extends State<IrigTestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('iRig Test'),
+        title: Text(widget.selectionMode ? 'Add iRig Content' : 'iRig Test'),
         backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
         foregroundColor: Colors.white,
+        actions: widget.selectionMode
+            ? [
+                TextButton(
+                  onPressed: () async {
+                    await _saveSelectedContents();
+                    Navigator.pop(context, selectedContents.toList());
+                  }, 
+                  child: Text(
+                    'Done',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ]
+            : null,
       ),
       body: Stack(
         children: [
@@ -196,11 +258,29 @@ class _IrigTestPageState extends State<IrigTestPage> {
                     itemCount: contents.length,
                     itemBuilder: (context, index) {
                       final content = contents[index];
-                      final isRunning = runningContent == content['name'];
+                      final contentName = content['name'];
+                      final isRunning = runningContent == contentName;
+                      final isSelected = widget.selectionMode
+                          ? selectedContents.contains(contentName)
+                          : false;
                       return GestureDetector(
-                        onTap: isRunning
-                            ? null
-                            : () => launchContent(content['name']),
+                        onTap: () {
+                          if (widget.selectionMode) {
+                            // In selection mode, toggle selection (allow multiple)
+                            setState(() {
+                              if (selectedContents.contains(contentName)) {
+                                selectedContents.remove(contentName);
+                              } else {
+                                selectedContents.add(contentName);
+                              }
+                            });
+                          } else {
+                            // Original play functionality
+                            if (!isRunning) {
+                              launchContent(contentName);
+                            }
+                          }
+                        },
                         child: Card(
                           elevation: 4,
                           shape: RoundedRectangleBorder(
@@ -248,7 +328,20 @@ class _IrigTestPageState extends State<IrigTestPage> {
                                           );
                                         },
                                       ),
-                                      if (isRunning)
+                                      // Show selection overlay in selection mode
+                                      if (widget.selectionMode && isSelected)
+                                        Container(
+                                          color: Colors.black.withOpacity(0.5),
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
+                                              size: 48,
+                                            ),
+                                          ),
+                                        ),
+                                      // Show running indicator (non-selection mode)
+                                      if (!widget.selectionMode && isRunning)
                                         Container(
                                           color: Colors.black.withOpacity(0.5),
                                           child: Center(
@@ -294,7 +387,7 @@ class _IrigTestPageState extends State<IrigTestPage> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    if (isRunning)
+                                    if (!widget.selectionMode && isRunning)
                                       Padding(
                                         padding: const EdgeInsets.only(
                                           top: 8.0,
@@ -326,7 +419,7 @@ class _IrigTestPageState extends State<IrigTestPage> {
                     },
                   ),
                 ),
-          if (runningContent != null)
+          if (!widget.selectionMode && runningContent != null)
             Positioned(
               bottom: 16,
               left: 16,
