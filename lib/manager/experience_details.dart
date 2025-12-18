@@ -174,7 +174,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       } else if (result is List) {
         for (var item in result) {
           if (item is String) {
-            _addBooth(device, contentName: item);
+            _addBooth(device, contentName: item);//
           }
         }
       }
