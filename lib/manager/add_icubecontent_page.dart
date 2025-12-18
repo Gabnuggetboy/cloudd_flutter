@@ -92,22 +92,30 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
     if (!widget.selectionMode) {
       _loadRunningFromPrefs();
     }
-    if (widget.selectionMode && widget.managerId != null) {
+    // Only load stored selections when selection mode AND we have a concrete
+    // experienceId. For a new experience (experienceId == null) we must start
+    // with an empty selection so different creations don't share a 'temp'
+    // selection document.
+    if (widget.selectionMode &&
+        widget.managerId != null &&
+        widget.experienceId != null) {
       _loadSelectedContents();
     }
     fetchContents();
   }
 
   Future<void> _loadSelectedContents() async {
+    if (widget.managerId == null || widget.experienceId == null) return;
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_icube_${widget.experienceId ?? 'temp'}")
+          .doc("${widget.managerId}_icube_${widget.experienceId}")
           .get();
 
-      if (doc.exists && doc.data()?["selectedContents"] != null) {
+      if (doc.exists && doc.data()?['selectedContents'] != null) {
         setState(() {
-          selectedContents = Set<String>.from(doc.data()!["selectedContents"]);
+          selectedContents = Set<String>.from(doc.data()!['selectedContents']);
         });
       }
     } catch (_) {
@@ -116,12 +124,13 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   }
 
   Future<void> _saveSelectedContents() async {
-    if (widget.managerId == null) return;
+    // Don't persist selections for a temporary/new experience (no id).
+    if (widget.managerId == null || widget.experienceId == null) return;
 
     try {
       await FirebaseFirestore.instance
           .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_icube_${widget.experienceId ?? 'temp'}")
+          .doc("${widget.managerId}_icube_${widget.experienceId}")
           .set({
             "managerId": widget.managerId,
             "device": "iCube",
@@ -332,9 +341,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.selectionMode ? 'Add iCube Content' : 'iCube Test',
-        ),
+        title: Text(widget.selectionMode ? 'Add iCube Content' : 'iCube Test'),
         backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
         foregroundColor: Colors.white,
         actions: widget.selectionMode

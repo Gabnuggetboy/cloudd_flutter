@@ -32,22 +32,29 @@ class _IrigTestPageState extends State<IrigTestPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.selectionMode && widget.managerId != null) {
+    // Only load stored selections when selection mode AND we have a concrete
+    // experienceId. New experiences (experienceId == null) must start with
+    // an empty selection so creations don't reuse a shared 'temp' doc.
+    if (widget.selectionMode &&
+        widget.managerId != null &&
+        widget.experienceId != null) {
       _loadSelectedContents();
     }
     fetchContents();
   }
 
   Future<void> _loadSelectedContents() async {
+    if (widget.managerId == null || widget.experienceId == null) return;
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_irig_${widget.experienceId ?? 'temp'}")
+          .doc("${widget.managerId}_irig_${widget.experienceId}")
           .get();
 
-      if (doc.exists && doc.data()?["selectedContents"] != null) {
+      if (doc.exists && doc.data()?['selectedContents'] != null) {
         setState(() {
-          selectedContents = Set<String>.from(doc.data()!["selectedContents"]);
+          selectedContents = Set<String>.from(doc.data()!['selectedContents']);
         });
       }
     } catch (_) {
@@ -56,12 +63,13 @@ class _IrigTestPageState extends State<IrigTestPage> {
   }
 
   Future<void> _saveSelectedContents() async {
-    if (widget.managerId == null) return;
+    // Don't persist selections for a temporary/new experience (no id).
+    if (widget.managerId == null || widget.experienceId == null) return;
 
     try {
       await FirebaseFirestore.instance
           .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_irig_${widget.experienceId ?? 'temp'}")
+          .doc("${widget.managerId}_irig_${widget.experienceId}")
           .set({
             "managerId": widget.managerId,
             "device": "iRig",
@@ -197,7 +205,7 @@ class _IrigTestPageState extends State<IrigTestPage> {
                   onPressed: () async {
                     await _saveSelectedContents();
                     Navigator.pop(context, selectedContents.toList());
-                  }, 
+                  },
                   child: Text(
                     'Done',
                     style: TextStyle(color: Colors.white, fontSize: 16),
