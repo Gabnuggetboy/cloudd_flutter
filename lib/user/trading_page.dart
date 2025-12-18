@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
@@ -57,7 +58,6 @@ class TradingPage extends StatelessWidget {
               ),
 
               const SizedBox(height: 20),
-
               // Search bar
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),

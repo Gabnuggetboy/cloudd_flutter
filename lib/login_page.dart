@@ -6,6 +6,8 @@ import 'manager/manager_account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
+import 'irig_test2.dart';
+import 'icube_test.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -210,7 +212,33 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                             ),
-                             TextButton(
+                            // TextButton(
+                            //   style: TextButton.styleFrom(
+                            //     backgroundColor: Colors.white.withOpacity(0.85),
+                            //     padding: EdgeInsets.symmetric(
+                            //       horizontal: 12,
+                            //       vertical: 8,
+                            //     ),
+                            //   ),
+                            //   onPressed: () {
+                            //     Navigator.push(
+                            //       context,
+                            //       MaterialPageRoute(
+                            //         builder: (context) =>
+                            //             const WebAppAccessPage(),
+                            //       ),
+                            //     );
+                            //   },
+                            //   child: Text(
+                            //     'Web App Access',
+                            //     style: TextStyle(
+                            //       color: Color.fromRGBO(143, 148, 251, 1),
+                            //       fontWeight: FontWeight.w600,
+                            //     ),
+                            //   ),
+                            // ),
+                            SizedBox(width: 8),
+                            TextButton(
                               style: TextButton.styleFrom(
                                 backgroundColor: Colors.white.withOpacity(0.85),
                                 padding: EdgeInsets.symmetric(
@@ -222,13 +250,37 @@ class _LoginPageState extends State<LoginPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        const WebAppAccessPage(),
+                                    builder: (context) => const IrigTestPage(),
                                   ),
                                 );
                               },
                               child: Text(
-                                'Web App Access',
+                                'irig test',
+                                style: TextStyle(
+                                  color: Color.fromRGBO(143, 148, 251, 1),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.85),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const iCubeTestPage(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'iCube test',
                                 style: TextStyle(
                                   color: Color.fromRGBO(143, 148, 251, 1),
                                   fontWeight: FontWeight.w600,
