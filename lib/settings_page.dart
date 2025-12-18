@@ -2,10 +2,52 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloudd_flutter/login_page.dart';
 import 'package:cloudd_flutter/theme_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloudd_flutter/navigation_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
+  Future<void> deleteAccount(BuildContext context) async {
+  print("DEBUG: Starting account deletion");
+  
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    
+    if (user == null) {
+      print("DEBUG: No user found");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No user logged in")),
+      );
+      return;
+    }
+
+    // Delete Firestore data
+    await FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .delete();
+    print("DEBUG: Firestore document deleted");
+
+    // Delete auth account
+    await user.delete();
+    print("DEBUG: Auth account deleted");
+
+    // **USE NAVIGATION SERVICE - NO CONTEXT NEEDED**
+    print("DEBUG: Navigating with NavigationService");
+    NavigationService.pushAndRemoveUntil(LoginPage());
+    print("DEBUG: Navigation called");
+    
+  } catch (e) {
+    print("DEBUG: Error: $e");
+    
+    // Show error using current context (if still valid)
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e")),
+    );
+  }
+}
   Widget buildTile(
     BuildContext context,
     String title, {
@@ -129,8 +171,44 @@ class SettingsPage extends StatelessWidget {
                     color: Colors.red,
                   ),
                 ),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Delete Account"),
+                      content: const Text(
+                        "Are you sure you want to permanently delete your account? "
+                        "This action cannot be undone.",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context); // Close popup
+                          },
+                          child: const Text("No"),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(context); // Close the confirmation dialog
+                            try {
+                              await deleteAccount(context);
+                              // Navigation happens inside deleteAccount on success
+                            } catch (e) {
+                              // Error is already handled in deleteAccount
+                            }
+                          },
+                          child: const Text(
+                            "Yes",
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
+
           ],
         ),
       ),
