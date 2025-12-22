@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloudd_flutter/manager/add_icubecontent_page.dart';
 import 'package:cloudd_flutter/manager/add_irigcontent_page.dart';
+import 'package:cloudd_flutter/webapp_access_page.dart';
 
 class ExploreExperiencePage extends StatefulWidget {
   final String experienceId;
@@ -23,19 +24,26 @@ class ExploreExperiencePage extends StatefulWidget {
 class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   final String icubeBase = 'http://192.168.0.143:5000';
   final String irigBase = 'http://192.168.0.126:5000';
+  final String icreateBase = 'http://192.168.0.129:5000';
+  final String storytimeBase = 'http://192.168.0.103:5000';
 
   List<dynamic> icubeContents = [];
   List<dynamic> irigContents = [];
+  List<dynamic> icreateContents = [];
+  List<dynamic> storytimeContents = [];
   bool icubeLoading = true;
   bool irigLoading = true;
+  bool icreateLoading = true;
+  bool storytimeLoading = true;
   String? icubeError;
   String? irigError;
+  String? icreateError;
+  String? storytimeError;
   List<Map<String, dynamic>> booths = [];
   bool boothsLoading = true;
   String? boothsError;
 
-  String? runningDevice; // 'iCube' or 'iRig'
-  String? runningContent;
+  Map<String, String?> runningContent = {};
 
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
@@ -46,6 +54,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     fetchExperienceBooths();
     fetchICubeContents();
     fetchIRigContents();
+    fetchICreateContents();
+    fetchStorytimeContents();
   }
 
   @override
@@ -112,6 +122,65 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     }
   }
 
+  Future<void> fetchICreateContents() async {
+    setState(() {
+      icreateLoading = true;
+      icreateError = null;
+    });
+    try {
+      final res = await http
+          .get(Uri.parse('$icreateBase/contents'))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List<dynamic>;
+        setState(() {
+          icreateContents = list;
+          icreateLoading = false;
+        });
+      } else {
+        setState(() {
+          icreateError = 'Failed to load iCreate contents: ${res.statusCode}';
+          icreateLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        icreateError = 'iCreate: $e';
+        icreateLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchStorytimeContents() async {
+    setState(() {
+      storytimeLoading = true;
+      storytimeError = null;
+    });
+    try {
+      final res = await http
+          .get(Uri.parse('$storytimeBase/contents'))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List<dynamic>;
+        setState(() {
+          storytimeContents = list;
+          storytimeLoading = false;
+        });
+      } else {
+        setState(() {
+          storytimeError =
+              'Failed to load Storytime contents: ${res.statusCode}';
+          storytimeLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        storytimeError = 'Storytime: $e';
+        storytimeLoading = false;
+      });
+    }
+  }
+
   Future<void> fetchExperienceBooths() async {
     setState(() {
       boothsLoading = true;
@@ -151,22 +220,43 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   }
 
   Future<void> launchContent(String device, String contentName) async {
-    final base = device == 'iCube' ? icubeBase : irigBase;
+    final base = device == 'iCube'
+        ? icubeBase
+        : device == 'iRig'
+        ? irigBase
+        : device == 'iCreate'
+        ? icreateBase
+        : device == 'Storytime'
+        ? storytimeBase
+        : '';
     try {
+      // If content is already running on the same device, stop it first
+      final currentRunningContent = runningContent[device];
+      if (currentRunningContent != null && currentRunningContent.isNotEmpty) {
+        await stopContent(device, currentRunningContent);
+      }
+
       final res = await http
           .get(Uri.parse('$base/launch/$contentName'))
           .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         setState(() {
-          runningDevice = device;
-          runningContent = contentName;
+          runningContent[device] = contentName;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Launching ${data['content']}: ${data['status']}'),
           ),
         );
+
+        // Navigate to WebAppAccessPage after launching Storytime content
+        if (device == 'Storytime') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const WebAppAccessPage()),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -183,25 +273,42 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   }
 
   Future<void> stopContent(String device, String contentName) async {
-    final base = device == 'iCube' ? icubeBase : irigBase;
+    final base = device == 'iCube'
+        ? icubeBase
+        : device == 'iRig'
+        ? irigBase
+        : device == 'iCreate'
+        ? icreateBase
+        : device == 'Storytime'
+        ? storytimeBase
+        : '';
     try {
       final res = await http
           .get(Uri.parse('$base/close/$contentName'))
           .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        if (data['status'] == 'success') {
+        // Check for success status or assume success if status is 200
+        final isSuccess =
+            data['status'] == 'success' ||
+            data['status'] == null ||
+            (data['message'] == null && data['status'] != 'error');
+
+        if (isSuccess) {
           setState(() {
-            runningDevice = null;
-            runningContent = null;
+            runningContent[device] = null;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Stopped ${data['closed_exe']}')),
-          );
+
+          // Try to get the executable name from various possible fields
+          final exeName = data['closed_exe'] ?? data['content'] ?? contentName;
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Stopped $exeName')));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${data['message']}'),
+              content: Text('Error: ${data['message'] ?? 'Unknown error'}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -244,6 +351,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         ? 'iCube'
         : deviceRaw.toLowerCase().contains('irig')
         ? 'iRig'
+        : deviceRaw.toLowerCase().contains('storytime')
+        ? 'Storytime'
         : deviceRaw;
     final contentName = (booth['contentName'] as String?);
 
@@ -252,11 +361,19 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         ? icubeContents
         : device == 'iRig'
         ? irigContents
+        : device == 'iCreate'
+        ? icreateContents
+        : device == 'Storytime'
+        ? storytimeContents
         : [];
     final baseUrl = device == 'iCube'
         ? icubeBase
         : device == 'iRig'
         ? irigBase
+        : device == 'iCreate'
+        ? icreateBase
+        : device == 'Storytime'
+        ? storytimeBase
         : '';
 
     dynamic matched;
@@ -277,8 +394,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     if (matched != null) {
       final content = matched;
       final contentNameFound = content['name'];
-      final isRunning =
-          runningDevice == device && runningContent == contentNameFound;
+      final isRunning = runningContent[device] == contentNameFound;
 
       return Card(
         elevation: 4,
@@ -503,8 +619,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       itemBuilder: (context, index) {
         final content = filtered[index];
         final contentName = content['name'];
-        final isRunning =
-            runningDevice == device && runningContent == contentName;
+        final isRunning = runningContent[device] == contentName;
 
         return Card(
           elevation: 4,
@@ -643,6 +758,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
             fetchExperienceBooths(),
             fetchICubeContents(),
             fetchIRigContents(),
+            fetchStorytimeContents(),
           ]);
         },
         child: SingleChildScrollView(
@@ -718,6 +834,50 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                 ),
               const SizedBox(height: 24),
 
+              // iCreate booths
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  'iCreate',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (boothsLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (boothsError != null)
+                Center(child: Text(boothsError!))
+              else
+                Builder(
+                  builder: (context) {
+                    final icreateBooths = booths
+                        .where(
+                          (b) => (b['device'] ?? '')
+                              .toString()
+                              .toLowerCase()
+                              .contains('icreate'),
+                        )
+                        .toList();
+                    if (icreateBooths.isEmpty)
+                      return const Center(child: Text('No iCreate booths'));
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.8,
+                          ),
+                      itemCount: icreateBooths.length,
+                      itemBuilder: (context, index) => _buildBoothCard(
+                        Map<String, dynamic>.from(icreateBooths[index] as Map),
+                      ),
+                    );
+                  },
+                ),
+
               // iRig booths
               const Padding(
                 padding: EdgeInsets.only(bottom: 8.0),
@@ -757,6 +917,53 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                       itemCount: irigBooths.length,
                       itemBuilder: (context, index) => _buildBoothCard(
                         Map<String, dynamic>.from(irigBooths[index] as Map),
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: 24),
+
+              // Storytime booths
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  'Storytime',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (boothsLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (boothsError != null)
+                Center(child: Text(boothsError!))
+              else
+                Builder(
+                  builder: (context) {
+                    final storytimeBooths = booths
+                        .where(
+                          (b) => (b['device'] ?? '')
+                              .toString()
+                              .toLowerCase()
+                              .contains('storytime'),
+                        )
+                        .toList();
+                    if (storytimeBooths.isEmpty)
+                      return const Center(child: Text('No Storytime booths'));
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.8,
+                          ),
+                      itemCount: storytimeBooths.length,
+                      itemBuilder: (context, index) => _buildBoothCard(
+                        Map<String, dynamic>.from(
+                          storytimeBooths[index] as Map,
+                        ),
                       ),
                     );
                   },

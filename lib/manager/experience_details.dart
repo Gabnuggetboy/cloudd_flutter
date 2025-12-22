@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'add_icubecontent_page.dart';
 import 'add_irigcontent_page.dart';
+import 'add_icreatecontent_page.dart';
+import 'add_storytimecontent_page.dart';
+
 
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
@@ -20,7 +23,6 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final List<String> devices = [
     "iCube",
     "iRig",
-    "iTiles",
     "iCreate",
     "Storytime",
   ];
@@ -113,7 +115,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               onPressed: () async {
                 // Perform delete
                 await FirebaseFirestore.instance
-                    .collection("Experiences")     
+                    .collection("Experiences")
                     .doc(widget.experienceId)
                     .delete();
 
@@ -165,6 +167,28 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
           ),
         ),
       );
+    } else if (device == "iCreate") {
+      result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => iCreateTestPage(
+            selectionMode: true,
+            managerId: FirebaseAuth.instance.currentUser?.uid,
+            experienceId: widget.experienceId,
+          ),
+        ),
+      );
+    } else if (device == "Storytime") {
+      result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StoryTimeTestPage(
+            selectionMode: true,
+            managerId: FirebaseAuth.instance.currentUser?.uid,
+            experienceId: widget.experienceId,
+          ),
+        ),
+      );
     }
 
     if (result != null) {
@@ -174,7 +198,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       } else if (result is List) {
         for (var item in result) {
           if (item is String) {
-            _addBooth(device, contentName: item);//
+            _addBooth(device, contentName: item); //
           }
         }
       }
@@ -277,7 +301,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                     children: devices.map((device) {
                       return ElevatedButton(
                         onPressed: () {
-                          if (device == "iCube" || device == "iRig") {
+                          if (device == "iCube" || device == "iRig" || device == "iCreate" || device == "Storytime") {
                             _navigateToContentPage(device);
                           } else {
                             _addBooth(device);

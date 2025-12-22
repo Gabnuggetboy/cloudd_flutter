@@ -18,7 +18,7 @@ class _WebAppAccessPageState extends State<WebAppAccessPage> {
     super.initState();
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('http://192.168.0.143'));
+      ..loadRequest(Uri.parse('http://192.168.0.103'));
   }
 
   @override
