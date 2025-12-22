@@ -5,6 +5,7 @@ import 'package:cloudd_flutter/services/web_scraper_service.dart';
 import 'package:cloudd_flutter/services/webview_scraper_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
+import 'package:cloudd_flutter/user/category_experiences_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -65,7 +66,7 @@ class _HomePageState extends State<HomePage> {
 
                   /// Greetings
                   const Text(
-                    "Hi User 1234,",
+                    "Hi User,",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const Text(
@@ -126,21 +127,80 @@ class _HomePageState extends State<HomePage> {
 
                   const SizedBox(height: 15),
 
-                  /// Category Circles
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(
-                      4,
-                      (index) => Container(
-                        width: 65,
-                        height: 65,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.surface,
-                        ),
-                      ),
+                  SizedBox(
+                    height: 90,
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('Experiences')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        // Extract unique categories
+                        final categories = snapshot.data!.docs
+                            .map((doc) => (doc.data() as Map<String, dynamic>)['category'])
+                            .where((c) => c != null && c.toString().isNotEmpty)
+                            .map((c) => c.toString())
+                            .toSet()
+                            .toList();
+
+                        if (categories.isEmpty) {
+                          return const Center(child: Text('No categories'));
+                        }
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            final category = categories[index];
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        CategoryExperiencesPage(category: category),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 75,
+                                margin: const EdgeInsets.only(right: 12),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 65,
+                                      height: 65,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color.fromRGBO(143, 148, 251, 1),
+                                      ),
+                                      child: const Icon(
+                                        Icons.category,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      category,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
+
 
                   const SizedBox(height: 30),
 
