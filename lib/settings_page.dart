@@ -11,43 +11,50 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> deleteAccount(BuildContext context) async {
   print("DEBUG: Starting account deletion");
-  
+
   try {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
-      print("DEBUG: No user found");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No user logged in")),
       );
       return;
     }
 
-    // Delete Firestore data
-    await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .delete();
-    print("DEBUG: Firestore document deleted");
+    final uid = user.uid;
+    final firestore = FirebaseFirestore.instance;
 
-    // Delete auth account
+    /// 1️⃣ Delete all experiences created by this user
+    final experiencesSnapshot = await firestore
+        .collection("Experiences")
+        .where("managerId", isEqualTo: uid)
+        .get();
+
+    final batch = firestore.batch();
+
+    for (final doc in experiencesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    await batch.commit();
+    print("DEBUG: Deleted ${experiencesSnapshot.docs.length} experiences");
+
+    await firestore.collection("users").doc(uid).delete();
+
     await user.delete();
-    print("DEBUG: Auth account deleted");
 
-    // **USE NAVIGATION SERVICE - NO CONTEXT NEEDED**
-    print("DEBUG: Navigating with NavigationService");
     NavigationService.pushAndRemoveUntil(LoginPage());
-    print("DEBUG: Navigation called");
-    
+
   } catch (e) {
-    print("DEBUG: Error: $e");
-    
-    // Show error using current context (if still valid)
+    print("DEBUG: Error deleting account: $e");
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e")),
+      SnackBar(content: Text("Error deleting account")),
     );
   }
 }
+
+
   Widget buildTile(
     BuildContext context,
     String title, {
