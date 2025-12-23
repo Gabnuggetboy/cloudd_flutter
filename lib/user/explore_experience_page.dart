@@ -250,11 +250,13 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
           ),
         );
 
-        // Navigate to WebAppAccessPage after launching Storytime content
+        // Navigate to Storytime web app after launching Storytime content
         if (device == 'Storytime') {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const WebAppAccessPage()),
+            MaterialPageRoute(
+              builder: (context) => const StoryTimeWebappPage(),
+            ),
           );
         }
       } else {
@@ -750,226 +752,311 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Explore: ${widget.experienceName}')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            fetchExperienceBooths(),
-            fetchICubeContents(),
-            fetchIRigContents(),
-            fetchStorytimeContents(),
-          ]);
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Search
-              TextField(
-                controller: searchController,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Search contents',
-                  suffixIcon: searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            searchController.clear();
-                            setState(() => searchQuery = '');
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
+    return WillPopScope(
+      onWillPop: () async {
+        final hasRunningContent = runningContent.values.any(
+          (content) => content != null && content.isNotEmpty,
+        );
+
+        if (hasRunningContent) {
+          await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Content Running'),
+                content: const Text(
+                  'Please stop all content before exiting experience',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+          return false; //to prevent users from exiting experience when there is content running
+        }
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text('Explore: ${widget.experienceName}')),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              fetchExperienceBooths(),
+              fetchICubeContents(),
+              fetchIRigContents(),
+              fetchStorytimeContents(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Search
+                TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search contents',
+                    suffixIcon: searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              searchController.clear();
+                              setState(() => searchQuery = '');
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  onChanged: (v) => setState(() => searchQuery = v),
+                ),
+                const SizedBox(height: 16),
+
+                // iCube booths (only booths listed in the experience)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'iCube',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
-                onChanged: (v) => setState(() => searchQuery = v),
-              ),
-              const SizedBox(height: 16),
+                if (boothsLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (boothsError != null)
+                  Center(child: Text(boothsError!))
+                else
+                  Builder(
+                    builder: (context) {
+                      final icubeBooths = booths
+                          .where(
+                            (b) => (b['device'] ?? '')
+                                .toString()
+                                .toLowerCase()
+                                .contains('icube'),
+                          )
+                          .toList();
 
-              // iCube booths (only booths listed in the experience)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'iCube',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (boothsLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (boothsError != null)
-                Center(child: Text(boothsError!))
-              else
-                Builder(
-                  builder: (context) {
-                    final icubeBooths = booths
-                        .where(
-                          (b) => (b['device'] ?? '')
-                              .toString()
-                              .toLowerCase()
-                              .contains('icube'),
-                        )
-                        .toList();
-                    if (icubeBooths.isEmpty)
-                      return const Center(child: Text('No iCube booths'));
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.8,
-                          ),
-                      itemCount: icubeBooths.length,
-                      itemBuilder: (context, index) => _buildBoothCard(
-                        Map<String, dynamic>.from(icubeBooths[index] as Map),
-                      ),
-                    );
-                  },
-                ),
-              const SizedBox(height: 24),
+                      // Apply search filter
+                      final filteredBooths = searchQuery.trim().isEmpty
+                          ? icubeBooths
+                          : icubeBooths.where((b) {
+                              final contentName = (b['contentName'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+                              final query = searchQuery.trim().toLowerCase();
+                              return contentName.contains(query);
+                            }).toList();
 
-              // iCreate booths
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'iCreate',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (boothsLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (boothsError != null)
-                Center(child: Text(boothsError!))
-              else
-                Builder(
-                  builder: (context) {
-                    final icreateBooths = booths
-                        .where(
-                          (b) => (b['device'] ?? '')
-                              .toString()
-                              .toLowerCase()
-                              .contains('icreate'),
-                        )
-                        .toList();
-                    if (icreateBooths.isEmpty)
-                      return const Center(child: Text('No iCreate booths'));
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.8,
+                      if (filteredBooths.isEmpty)
+                        return const Center(child: Text('No iCube booths'));
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.8,
+                            ),
+                        itemCount: filteredBooths.length,
+                        itemBuilder: (context, index) => _buildBoothCard(
+                          Map<String, dynamic>.from(
+                            filteredBooths[index] as Map,
                           ),
-                      itemCount: icreateBooths.length,
-                      itemBuilder: (context, index) => _buildBoothCard(
-                        Map<String, dynamic>.from(icreateBooths[index] as Map),
-                      ),
-                    );
-                  },
-                ),
-
-              // iRig booths
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'iRig',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (boothsLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (boothsError != null)
-                Center(child: Text(boothsError!))
-              else
-                Builder(
-                  builder: (context) {
-                    final irigBooths = booths
-                        .where(
-                          (b) => (b['device'] ?? '')
-                              .toString()
-                              .toLowerCase()
-                              .contains('irig'),
-                        )
-                        .toList();
-                    if (irigBooths.isEmpty)
-                      return const Center(child: Text('No iRig booths'));
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.8,
-                          ),
-                      itemCount: irigBooths.length,
-                      itemBuilder: (context, index) => _buildBoothCard(
-                        Map<String, dynamic>.from(irigBooths[index] as Map),
-                      ),
-                    );
-                  },
-                ),
-              const SizedBox(height: 24),
-
-              // Storytime booths
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'Storytime',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (boothsLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (boothsError != null)
-                Center(child: Text(boothsError!))
-              else
-                Builder(
-                  builder: (context) {
-                    final storytimeBooths = booths
-                        .where(
-                          (b) => (b['device'] ?? '')
-                              .toString()
-                              .toLowerCase()
-                              .contains('storytime'),
-                        )
-                        .toList();
-                    if (storytimeBooths.isEmpty)
-                      return const Center(child: Text('No Storytime booths'));
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.8,
-                          ),
-                      itemCount: storytimeBooths.length,
-                      itemBuilder: (context, index) => _buildBoothCard(
-                        Map<String, dynamic>.from(
-                          storytimeBooths[index] as Map,
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
+                const SizedBox(height: 24),
+
+                // iCreate booths
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'iCreate',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              const SizedBox(height: 24),
-            ],
+                if (boothsLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (boothsError != null)
+                  Center(child: Text(boothsError!))
+                else
+                  Builder(
+                    builder: (context) {
+                      final icreateBooths = booths
+                          .where(
+                            (b) => (b['device'] ?? '')
+                                .toString()
+                                .toLowerCase()
+                                .contains('icreate'),
+                          )
+                          .toList();
+
+                      // Apply search filter
+                      final filteredBooths = searchQuery.trim().isEmpty
+                          ? icreateBooths
+                          : icreateBooths.where((b) {
+                              final contentName = (b['contentName'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+                              final query = searchQuery.trim().toLowerCase();
+                              return contentName.contains(query);
+                            }).toList();
+
+                      if (filteredBooths.isEmpty)
+                        return const Center(child: Text('No iCreate booths'));
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.8,
+                            ),
+                        itemCount: filteredBooths.length,
+                        itemBuilder: (context, index) => _buildBoothCard(
+                          Map<String, dynamic>.from(
+                            filteredBooths[index] as Map,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                // iRig booths
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'iRig',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (boothsLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (boothsError != null)
+                  Center(child: Text(boothsError!))
+                else
+                  Builder(
+                    builder: (context) {
+                      final irigBooths = booths
+                          .where(
+                            (b) => (b['device'] ?? '')
+                                .toString()
+                                .toLowerCase()
+                                .contains('irig'),
+                          )
+                          .toList();
+
+                      // Apply search filter
+                      final filteredBooths = searchQuery.trim().isEmpty
+                          ? irigBooths
+                          : irigBooths.where((b) {
+                              final contentName = (b['contentName'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+                              final query = searchQuery.trim().toLowerCase();
+                              return contentName.contains(query);
+                            }).toList();
+
+                      if (filteredBooths.isEmpty)
+                        return const Center(child: Text('No iRig booths'));
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.8,
+                            ),
+                        itemCount: filteredBooths.length,
+                        itemBuilder: (context, index) => _buildBoothCard(
+                          Map<String, dynamic>.from(
+                            filteredBooths[index] as Map,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 24),
+
+                // Storytime booths
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    'Storytime',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (boothsLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (boothsError != null)
+                  Center(child: Text(boothsError!))
+                else
+                  Builder(
+                    builder: (context) {
+                      final storytimeBooths = booths
+                          .where(
+                            (b) => (b['device'] ?? '')
+                                .toString()
+                                .toLowerCase()
+                                .contains('storytime'),
+                          )
+                          .toList();
+
+                      // Apply search filter
+                      final filteredBooths = searchQuery.trim().isEmpty
+                          ? storytimeBooths
+                          : storytimeBooths.where((b) {
+                              final contentName = (b['contentName'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+                              final query = searchQuery.trim().toLowerCase();
+                              return contentName.contains(query);
+                            }).toList();
+
+                      if (filteredBooths.isEmpty)
+                        return const Center(child: Text('No Storytime booths'));
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.8,
+                            ),
+                        itemCount: filteredBooths.length,
+                        itemBuilder: (context, index) => _buildBoothCard(
+                          Map<String, dynamic>.from(
+                            filteredBooths[index] as Map,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),

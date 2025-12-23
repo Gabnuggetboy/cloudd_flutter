@@ -7,12 +7,14 @@ class IrigTestPage extends StatefulWidget {
   final bool selectionMode;
   final String? managerId;
   final String? experienceId;
+  final List<String>? initialSelectedContents;
 
   const IrigTestPage({
     super.key,
     this.selectionMode = false,
     this.managerId,
     this.experienceId,
+    this.initialSelectedContents,
   });
 
   @override
@@ -32,13 +34,15 @@ class _IrigTestPageState extends State<IrigTestPage> {
   @override
   void initState() {
     super.initState();
-    // Only load stored selections when selection mode AND we have a concrete
-    // experienceId. New experiences (experienceId == null) must start with
-    // an empty selection so creations don't reuse a shared 'temp' doc.
-    if (widget.selectionMode &&
-        widget.managerId != null &&
-        widget.experienceId != null) {
-      _loadSelectedContents();
+    
+    // To show previously selected contents
+    if (widget.selectionMode) {
+      if (widget.initialSelectedContents != null &&
+          widget.initialSelectedContents!.isNotEmpty) {
+        selectedContents = Set<String>.from(widget.initialSelectedContents!);
+      } else if (widget.managerId != null && widget.experienceId != null) {
+        _loadSelectedContents();
+      }
     }
     fetchContents();
   }

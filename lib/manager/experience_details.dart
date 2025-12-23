@@ -6,7 +6,6 @@ import 'add_irigcontent_page.dart';
 import 'add_icreatecontent_page.dart';
 import 'add_storytimecontent_page.dart';
 
-
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
 
@@ -18,13 +17,19 @@ class ExperienceDetailsPage extends StatefulWidget {
 
 class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final TextEditingController _nameController = TextEditingController();
+
+  String? category;
+
   List<Map<String, dynamic>> booths = [];
 
-  final List<String> devices = [
-    "iCube",
-    "iRig",
-    "iCreate",
-    "Storytime",
+  final List<String> devices = ["iCube", "iRig", "iCreate", "Storytime"];
+
+  final List<String> categories = [
+    "Education",
+    "Entertainment",
+    "Technology",
+    "Art",
+    "Workshop",
   ];
 
   bool enabled = true;
@@ -47,6 +52,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
     final data = doc.data()!;
     _nameController.text = data["name"];
+    category = data["category"];
     enabled = data["enabled"];
     if (data["booths"] != null) {
       booths = List<Map<String, dynamic>>.from(data["booths"]);
@@ -81,6 +87,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       await ref.doc(widget.experienceId).update({
         "name": _nameController.text,
         "enabled": enabled,
+        "category": category,
         "last_updated": Timestamp.now(),
         "booths": booths,
       });
@@ -88,6 +95,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       await ref.add({
         "name": _nameController.text,
         "enabled": true,
+        "category": category,
         "managerId": currentUser.uid,
         "last_updated": Timestamp.now(),
         "booths": booths,
@@ -145,6 +153,12 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   Future<void> _navigateToContentPage(String device) async {
     dynamic result;
 
+    // for initial content selections
+    final initialSelections = booths
+        .where((b) => (b['device'] == device) && (b['contentName'] != null))
+        .map((b) => b['contentName'] as String)
+        .toList();
+
     if (device == "iCube") {
       result = await Navigator.push(
         context,
@@ -153,6 +167,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
             selectionMode: true,
             managerId: FirebaseAuth.instance.currentUser?.uid,
             experienceId: widget.experienceId,
+            initialSelectedContents: initialSelections,
           ),
         ),
       );
@@ -164,6 +179,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
             selectionMode: true,
             managerId: FirebaseAuth.instance.currentUser?.uid,
             experienceId: widget.experienceId,
+            initialSelectedContents: initialSelections,
           ),
         ),
       );
@@ -175,6 +191,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
             selectionMode: true,
             managerId: FirebaseAuth.instance.currentUser?.uid,
             experienceId: widget.experienceId,
+            initialSelectedContents: initialSelections,
           ),
         ),
       );
@@ -186,6 +203,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
             selectionMode: true,
             managerId: FirebaseAuth.instance.currentUser?.uid,
             experienceId: widget.experienceId,
+            initialSelectedContents: initialSelections,
           ),
         ),
       );
@@ -218,6 +236,23 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(labelText: "Experience Name"),
+            ),
+
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: category,
+              decoration: const InputDecoration(
+                labelText: "Category",
+                border: OutlineInputBorder(),
+              ),
+              items: categories.map((cat) {
+                return DropdownMenuItem(value: cat, child: Text(cat));
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  category = value;
+                });
+              },
             ),
 
             const SizedBox(height: 24),
@@ -301,7 +336,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                     children: devices.map((device) {
                       return ElevatedButton(
                         onPressed: () {
-                          if (device == "iCube" || device == "iRig" || device == "iCreate" || device == "Storytime") {
+                          if (device == "iCube" ||
+                              device == "iRig" ||
+                              device == "iCreate" ||
+                              device == "Storytime") {
                             _navigateToContentPage(device);
                           } else {
                             _addBooth(device);

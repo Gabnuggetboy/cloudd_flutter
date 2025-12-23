@@ -7,12 +7,14 @@ class iCreateTestPage extends StatefulWidget {
   final bool selectionMode;
   final String? managerId;
   final String? experienceId;
+  final List<String>? initialSelectedContents;
 
   const iCreateTestPage({
     super.key,
     this.selectionMode = false,
     this.managerId,
     this.experienceId,
+    this.initialSelectedContents,
   });
 
   @override
@@ -32,13 +34,14 @@ class _iCreateTestPageState extends State<iCreateTestPage> {
   @override
   void initState() {
     super.initState();
-    // Only load stored selections when selection mode AND we have a concrete
-    // experienceId. New experiences (experienceId == null) must start with
-    // an empty selection so creations don't reuse a shared 'temp' doc.
-    if (widget.selectionMode &&
-        widget.managerId != null &&
-        widget.experienceId != null) {
-      _loadSelectedContents();
+    // To show previously selected contents
+    if (widget.selectionMode) {
+      if (widget.initialSelectedContents != null &&
+          widget.initialSelectedContents!.isNotEmpty) {
+        selectedContents = Set<String>.from(widget.initialSelectedContents!);
+      } else if (widget.managerId != null && widget.experienceId != null) {
+        _loadSelectedContents();
+      }
     }
     fetchContents();
   }
@@ -196,7 +199,9 @@ class _iCreateTestPageState extends State<iCreateTestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.selectionMode ? 'Add iCreate Content' : 'iCreate Test'),
+        title: Text(
+          widget.selectionMode ? 'Add iCreate Content' : 'iCreate Test',
+        ),
         backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
         foregroundColor: Colors.white,
         actions: widget.selectionMode

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
-import 'package:cloudd_flutter/services/web_scraper_service.dart';
-import 'package:cloudd_flutter/services/webview_scraper_service.dart';
+// import 'package:cloudd_flutter/services/web_scraper_service.dart';
+// import 'package:cloudd_flutter/services/webview_scraper_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
+import 'package:cloudd_flutter/user/category_experiences_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,10 +15,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<GameData> _recommendedGames = [];
+  // List<GameData> _recommendedGames = [];
   bool _isLoading = true;
   bool _isRefreshing = false;
-  bool _showWebView = false;
+  // bool _showWebView = false;
 
   @override
   void initState() {
@@ -28,25 +29,25 @@ class _HomePageState extends State<HomePage> {
   void _loadGames() {
     setState(() {
       _isLoading = true;
-      _showWebView = true;
+      // _showWebView = true;
     });
   }
 
   void _refreshGames() {
     setState(() {
       _isRefreshing = true;
-      _showWebView = true;
+      // _showWebView = true;
     });
   }
 
-  void _onGamesFetched(List<GameData> games) {
-    setState(() {
-      _recommendedGames = games;
-      _isLoading = false;
-      _isRefreshing = false;
-      _showWebView = false;
-    });
-  }
+  // void _onGamesFetched(List<GameData> games) {
+  //   setState(() {
+  //     _recommendedGames = games;
+  //     _isLoading = false;
+  //     _isRefreshing = false;
+  //     _showWebView = false;
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +66,7 @@ class _HomePageState extends State<HomePage> {
 
                   /// Greetings
                   const Text(
-                    "Hi User 1234,",
+                    "Hi User,",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const Text(
@@ -125,22 +126,80 @@ class _HomePageState extends State<HomePage> {
                   ),
 
                   const SizedBox(height: 15),
+                  SizedBox(
+                    height: 90,
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('Experiences')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-                  /// Category Circles
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(
-                      4,
-                      (index) => Container(
-                        width: 65,
-                        height: 65,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.surface,
-                        ),
-                      ),
+                        // Extract unique categories
+                        final categories = snapshot.data!.docs
+                            .map((doc) => (doc.data() as Map<String, dynamic>)['category'])
+                            .where((c) => c != null && c.toString().isNotEmpty)
+                            .map((c) => c.toString())
+                            .toSet()
+                            .toList();
+
+                        if (categories.isEmpty) {
+                          return const Center(child: Text('No categories'));
+                        }
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            final category = categories[index];
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        CategoryExperiencesPage(category: category),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 75,
+                                margin: const EdgeInsets.only(right: 10),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 65,
+                                      height: 65,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color.fromRGBO(143, 148, 251, 1),
+                                      ),
+                                      child: const Icon(
+                                        Icons.category,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      category,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
+
 
                   const SizedBox(height: 30),
 
@@ -174,102 +233,102 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 15),
 
                   /// Recommended Boxes
-                  SizedBox(
-                    height: 140,
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _recommendedGames.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No games available',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          )
-                        : ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _recommendedGames.length,
-                            itemBuilder: (context, index) {
-                              final game = _recommendedGames[index];
-                              return Container(
-                                width: MediaQuery.of(context).size.width * 0.42,
-                                margin: EdgeInsets.only(
-                                  right: 15,
-                                  left: index == 0 ? 0 : 0,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD8CFCF),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.network(
-                                        game.imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              return const Center(
-                                                child: Icon(
-                                                  Icons.image,
-                                                  size: 50,
-                                                  color: Colors.grey,
-                                                ),
-                                              );
-                                            },
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child;
-                                              }
-                                              return const Center(
-                                                child:
-                                                    CircularProgressIndicator(),
-                                              );
-                                            },
-                                      ),
-                                      Center(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.6,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.play_arrow,
-                                                color: Colors.white,
-                                                size: 20,
-                                              ),
-                                              SizedBox(width: 4),
-                                              Text(
-                                                'Play',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
+                  // SizedBox(
+                  //   height: 140,
+                  //   child: _isLoading
+                  //       // ? const Center(child: CircularProgressIndicator())
+                  //       // : _recommendedGames.isEmpty
+                  //       ? const Center(
+                  //           child: Text(
+                  //             'No games available',
+                  //             style: TextStyle(color: Colors.grey),
+                  //           ),
+                  //         )
+                  //       : ListView.builder(
+                  //           scrollDirection: Axis.horizontal,
+                  //           // itemCount: _recommendedGames.length,
+                  //           itemBuilder: (context, index) {
+                  //             // final game = _recommendedGames[index];
+                  //             return Container(
+                  //               width: MediaQuery.of(context).size.width * 0.42,
+                  //               margin: EdgeInsets.only(
+                  //                 right: 15,
+                  //                 left: index == 0 ? 0 : 0,
+                  //               ),
+                  //               decoration: BoxDecoration(
+                  //                 color: const Color(0xFFD8CFCF),
+                  //                 borderRadius: BorderRadius.circular(12),
+                  //               ),
+                  //               child: ClipRRect(
+                  //                 borderRadius: BorderRadius.circular(12),
+                  //                 child: Stack(
+                  //                   fit: StackFit.expand,
+                  //                   children: [
+                  //                     Image.network(
+                  //                       // game.imageUrl,
+                  //                       // fit: BoxFit.cover,
+                  //                       errorBuilder:
+                  //                           (context, error, stackTrace) {
+                  //                             return const Center(
+                  //                               child: Icon(
+                  //                                 Icons.image,
+                  //                                 size: 50,
+                  //                                 color: Colors.grey,
+                  //                               ),
+                  //                             );
+                  //                           },
+                  //                       loadingBuilder:
+                  //                           (context, child, loadingProgress) {
+                  //                             if (loadingProgress == null) {
+                  //                               return child;
+                  //                             }
+                  //                             return const Center(
+                  //                               child:
+                  //                                   CircularProgressIndicator(),
+                  //                             );
+                  //                           },
+                  //                     ),
+                  //                     Center(
+                  //                       child: Container(
+                  //                         padding: const EdgeInsets.symmetric(
+                  //                           horizontal: 16,
+                  //                           vertical: 8,
+                  //                         ),
+                  //                         decoration: BoxDecoration(
+                  //                           color: Colors.black.withValues(
+                  //                             alpha: 0.6,
+                  //                           ),
+                  //                           borderRadius: BorderRadius.circular(
+                  //                             20,
+                  //                           ),
+                  //                         ),
+                  //                         child: const Row(
+                  //                           mainAxisSize: MainAxisSize.min,
+                  //                           children: [
+                  //                             Icon(
+                  //                               Icons.play_arrow,
+                  //                               color: Colors.white,
+                  //                               size: 20,
+                  //                             ),
+                  //                             SizedBox(width: 4),
+                  //                             Text(
+                  //                               'Play',
+                  //                               style: TextStyle(
+                  //                                 color: Colors.white,
+                  //                                 fontWeight: FontWeight.w600,
+                  //                               ),
+                  //                             ),
+                  //                           ],
+                  //                         ),
+                  //                       ),
+                  //                     ),
+                  //                   ],
+                  //                 ),
+                  //               ),
+                  //             );
+                  //           },
+                  //         ),
+                  // ),
 
                   const SizedBox(height: 30),
 
@@ -439,8 +498,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             // Hidden WebView for scraping
-            if (_showWebView)
-              HiddenWebViewScraper(onDataFetched: _onGamesFetched),
+            // if (_showWebView)
+              // HiddenWebViewScraper(onDataFetched: _onGamesFetched),
           ],
         ),
       ),

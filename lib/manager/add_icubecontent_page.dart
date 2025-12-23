@@ -8,12 +8,14 @@ class iCubeTestPage extends StatefulWidget {
   final bool selectionMode;
   final String? managerId;
   final String? experienceId;
+  final List<String>? initialSelectedContents;
 
   const iCubeTestPage({
     super.key,
     this.selectionMode = false,
     this.managerId,
     this.experienceId,
+    this.initialSelectedContents,
   });
 
   @override
@@ -92,14 +94,14 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
     if (!widget.selectionMode) {
       _loadRunningFromPrefs();
     }
-    // Only load stored selections when selection mode AND we have a concrete
-    // experienceId. For a new experience (experienceId == null) we must start
-    // with an empty selection so different creations don't share a 'temp'
-    // selection document.
-    if (widget.selectionMode &&
-        widget.managerId != null &&
-        widget.experienceId != null) {
-      _loadSelectedContents();
+    // To show previously selected contents
+    if (widget.selectionMode) {
+      if (widget.initialSelectedContents != null &&
+          widget.initialSelectedContents!.isNotEmpty) {
+        selectedContents = Set<String>.from(widget.initialSelectedContents!);
+      } else if (widget.managerId != null && widget.experienceId != null) {
+        _loadSelectedContents();
+      }
     }
     fetchContents();
   }
