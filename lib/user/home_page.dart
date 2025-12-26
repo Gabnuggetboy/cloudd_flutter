@@ -384,17 +384,10 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: const [
                       Text(
-                        "Explore",
+                        "TESTING EXPERIENCES ONLY",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        "Discover experiences",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],

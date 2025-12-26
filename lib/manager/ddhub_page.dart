@@ -88,7 +88,12 @@ class _DDHubPageState extends State<DDHubPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 40),
-            TopSettingsTitleWidget(showCloudd: false, showDDHub: true),
+            TopSettingsTitleWidget(
+              showCloudd: false,
+              showDDHub: true,
+              showSettings: false,
+              showNotificationIcon: true,
+            ),
             const SizedBox(height: 10),
 
             // 🔍 Search

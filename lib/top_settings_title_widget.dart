@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/settings_page.dart';
+import 'package:cloudd_flutter/manager/notification_page.dart';
 
 class TopSettingsTitleWidget extends StatelessWidget {
   final bool showCloudd;
@@ -13,6 +14,8 @@ class TopSettingsTitleWidget extends StatelessWidget {
   final String manageExperiencesText;
   final double logoFontSize;
   final VoidCallback? onSettingsTap;
+  final bool showNotificationIcon;
+  final VoidCallback? onNotificationTap;
 
   const TopSettingsTitleWidget({
     super.key,
@@ -27,6 +30,8 @@ class TopSettingsTitleWidget extends StatelessWidget {
     this.manageExperiencesText = 'Manage Experiences',
     this.logoFontSize = 26,
     this.onSettingsTap,
+    this.showNotificationIcon = false,
+    this.onNotificationTap,
   });
 
   @override
@@ -73,7 +78,21 @@ class TopSettingsTitleWidget extends StatelessWidget {
                 ),
               )
             : SizedBox(width: logoFontSize * 3),
-        showSettings
+        showNotificationIcon
+            ? IconButton(
+                onPressed:
+                    onNotificationTap ??
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsPage(),
+                        ),
+                      );
+                    },
+                icon: const Icon(Icons.notifications, size: 30),
+              )
+            : showSettings
             ? IconButton(
                 onPressed:
                     onSettingsTap ??

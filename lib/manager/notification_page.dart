@@ -1,8 +1,18 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
-import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
+
+// Reusable helper to delete a notification document from anywhere.
+Future<void> deleteNotificationDoc(
+  DocumentReference<Map<String, dynamic>> ref,
+) async {
+  try {
+    await ref.delete();
+  } catch (e) {
+    // ignore errors
+  }
+}
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -37,50 +47,62 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Future<void> _acceptInvite(
     DocumentSnapshot<Map<String, dynamic>> notifDoc,
   ) async {
-    final data = notifDoc.data();
-    if (data == null) return;
-    final expId = data['experienceId'] as String?;
-    final userEmail = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
-    if (expId == null || userEmail == null) return;
+    final data = notifDoc.data()!;
+    final expId = data['experienceId'];
+    final user = FirebaseAuth.instance.currentUser;
+    final userEmail = user?.email?.toLowerCase();
+    final userUid = user?.uid;
+    if (expId == null || userEmail == null || userUid == null) return;
 
     final expRef = FirebaseFirestore.instance
         .collection('Experiences')
         .doc(expId);
     final expSnap = await expRef.get();
     final expData = expSnap.data();
-    final collaborators =
-        (expData?['collaborators'] as List?)
-            ?.map((c) => Map<String, dynamic>.from(c as Map))
-            .toList() ??
-        [];
+    List coll = [];
+    if (expData != null && expData['collaborators'] != null)
+      coll = List.from(expData['collaborators']);
 
-    bool updated = false;
-    for (final c in collaborators) {
+    // update collaborator status and ensure uid is present
+    for (var c in coll) {
       final cEmail = (c['email'] as String?)?.toLowerCase();
-      final cUid = c['uid'] as String?;
-      if ((cEmail == userEmail || (userUid != null && cUid == userUid)) &&
-          c['status'] == 'pending') {
+      if (cEmail == userEmail && c['status'] == 'pending') {
         c['status'] = 'accepted';
-        updated = true;
+        // ensure uid is stored for indexing
+        c['uid'] = userUid;
       }
     }
 
-    if (updated) {
-      await expRef.update({'collaborators': collaborators});
+    // Update collaborators and also ensure accepted collaborators are indexed
+    final Set<String> collabUids = {};
+    final Set<String> collabEmails = {};
+    for (var c in coll) {
+      final status = (c['status'] as String?) ?? '';
+      if (status != 'accepted') continue;
+      final cuid = (c['uid'] as String?);
+      final cemail = (c['email'] as String?)?.toLowerCase();
+      if (cuid != null && cuid.isNotEmpty) collabUids.add(cuid);
+      if (cemail != null && cemail.isNotEmpty) collabEmails.add(cemail);
     }
-    // to remove notif after accepting invite
-    await notifDoc.reference.delete();
+
+    await expRef.update({
+      'collaborators': coll,
+      'collaboratorUids': collabUids.toList(),
+      'collaboratorEmails': collabEmails.toList(),
+    });
+
+    // delete the notification doc after accepting
+    await deleteNotificationDoc(notifDoc.reference);
+    setState(() {});
   }
 
   Future<void> _declineInvite(
     DocumentSnapshot<Map<String, dynamic>> notifDoc,
   ) async {
-    final data = notifDoc.data();
-    if (data == null) return;
-    final expId = data['experienceId'] as String?;
-    final userEmail = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
+    final data = notifDoc.data()!;
+    final expId = data['experienceId'];
+    final user = FirebaseAuth.instance.currentUser;
+    final userEmail = user?.email?.toLowerCase();
     if (expId == null || userEmail == null) return;
 
     final expRef = FirebaseFirestore.instance
@@ -88,94 +110,79 @@ class _NotificationsPageState extends State<NotificationsPage> {
         .doc(expId);
     final expSnap = await expRef.get();
     final expData = expSnap.data();
-    final collaborators =
-        (expData?['collaborators'] as List?)
-            ?.map((c) => Map<String, dynamic>.from(c as Map))
-            .toList() ??
-        [];
+    List coll = [];
+    if (expData != null && expData['collaborators'] != null)
+      coll = List.from(expData['collaborators']);
 
-    collaborators.removeWhere((c) {
-      final cEmail = (c['email'] as String?)?.toLowerCase();
-      final cUid = c['uid'] as String?;
-      return (cEmail == userEmail || (userUid != null && cUid == userUid)) &&
-          c['status'] == 'pending';
+    coll.removeWhere(
+      (c) =>
+          (c['email'] as String?)?.toLowerCase() == userEmail &&
+          c['status'] == 'pending',
+    );
+
+    // Also update collaborator index arrays to remove any accepted entries (shouldn't be any)
+    final Set<String> collabUids = {};
+    final Set<String> collabEmails = {};
+    for (var c in coll) {
+      final status = (c['status'] as String?) ?? '';
+      if (status != 'accepted') continue;
+      final cuid = (c['uid'] as String?);
+      final cemail = (c['email'] as String?)?.toLowerCase();
+      if (cuid != null && cuid.isNotEmpty) collabUids.add(cuid);
+      if (cemail != null && cemail.isNotEmpty) collabEmails.add(cemail);
+    }
+
+    await expRef.update({
+      'collaborators': coll,
+      'collaboratorUids': collabUids.toList(),
+      'collaboratorEmails': collabEmails.toList(),
     });
 
-    await expRef.update({'collaborators': collaborators});
-    // to remove notif after declining invite
-    await notifDoc.reference.delete();
+    // delete the notification doc after declining
+    await deleteNotificationDoc(notifDoc.reference);
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasUidStream = _notifByUid != null;
-    final hasEmailStream = _notifByEmail != null;
-    final primaryStream = _notifByUid ?? _notifByEmail;
-
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: TopSettingsTitleWidget(
                 showCloudd: false,
-                showSettings: true,
+                showSettings: false,
                 showNotifications: true,
+                showNotificationIcon: false,
               ),
             ),
             Expanded(
-              child: primaryStream == null
+              child: _notifByUid == null && _notifByEmail == null
                   ? const Center(child: Text('Not logged in'))
                   : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: primaryStream,
-                      builder: (context, primarySnap) {
-                        final primaryDocs = primarySnap.data?.docs ?? [];
-
-                        // If only one stream is available, show it directly.
-                        if (!hasUidStream || !hasEmailStream) {
-                          final docs = [...primaryDocs]
-                            ..sort((a, b) {
-                              final ta = a.data()['createdAt'] as Timestamp?;
-                              final tb = b.data()['createdAt'] as Timestamp?;
-                              return (tb?.millisecondsSinceEpoch ?? 0)
-                                  .compareTo(ta?.millisecondsSinceEpoch ?? 0);
-                            });
-
-                          if (primarySnap.connectionState ==
-                                  ConnectionState.waiting &&
-                              docs.isEmpty) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-
-                          return _NotificationList(
-                            docs: docs,
-                            onAccept: _acceptInvite,
-                            onDecline: _declineInvite,
-                          );
-                        }
-
-                        // Both streams are available: merge uid + email.
+                      stream: _notifByUid ?? _notifByEmail!,
+                      builder: (context, uidSnap) {
+                        final uidDocs = uidSnap.data?.docs ?? [];
                         return StreamBuilder<
                           QuerySnapshot<Map<String, dynamic>>
                         >(
                           stream: _notifByEmail,
                           builder: (context, emailSnap) {
                             final emailDocs = emailSnap.data?.docs ?? [];
-                            final merged =
-                                <
-                                  String,
-                                  QueryDocumentSnapshot<Map<String, dynamic>>
-                                >{};
-                            for (final d in primaryDocs) {
+                            // merge unique by doc id
+                            final Map<
+                              String,
+                              QueryDocumentSnapshot<Map<String, dynamic>>
+                            >
+                            merged = {};
+                            for (final d in uidDocs) {
                               merged[d.id] = d;
                             }
                             for (final d in emailDocs) {
                               merged[d.id] = d;
                             }
-
                             final docs = merged.values.toList()
                               ..sort((a, b) {
                                 final ta = a.data()['createdAt'] as Timestamp?;
@@ -184,22 +191,57 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                     .compareTo(ta?.millisecondsSinceEpoch ?? 0);
                               });
 
-                            final waiting =
-                                (primarySnap.connectionState ==
-                                    ConnectionState.waiting ||
-                                emailSnap.connectionState ==
-                                    ConnectionState.waiting);
-
-                            if (waiting && docs.isEmpty) {
+                            if (uidSnap.connectionState ==
+                                    ConnectionState.waiting &&
+                                (emailSnap.connectionState ==
+                                    ConnectionState.waiting)) {
                               return const Center(
                                 child: CircularProgressIndicator(),
                               );
                             }
 
-                            return _NotificationList(
-                              docs: docs,
-                              onAccept: _acceptInvite,
-                              onDecline: _declineInvite,
+                            if (docs.isEmpty) {
+                              return ListView(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                children: const [
+                                  SizedBox(height: 20),
+                                  Center(
+                                    child: Text(
+                                      'No notifications.',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+
+                            return ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              itemCount: docs.length,
+                              itemBuilder: (context, index) {
+                                final d = docs[index];
+                                final data = d.data();
+                                final type = data['type'] ?? '';
+                                if (type == 'invite') {
+                                  return InviteNotificationItem(
+                                    doc: d,
+                                    onAccept: () => _acceptInvite(d),
+                                    onDecline: () => _declineInvite(d),
+                                  );
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Text(
+                                    data['message'] ?? 'Notification',
+                                  ),
+                                );
+                              },
                             );
                           },
                         );
@@ -209,63 +251,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationWidget(
-        context: context,
-        onIconTap: (index) {},
-      ),
-    );
-  }
-}
-
-class _NotificationList extends StatelessWidget {
-  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
-  final Future<void> Function(DocumentSnapshot<Map<String, dynamic>> doc)
-  onAccept;
-  final Future<void> Function(DocumentSnapshot<Map<String, dynamic>> doc)
-  onDecline;
-
-  const _NotificationList({
-    required this.docs,
-    required this.onAccept,
-    required this.onDecline,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (docs.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: const [
-          SizedBox(height: 20),
-          Center(
-            child: Text(
-              'No notifications.',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: docs.length,
-      itemBuilder: (context, index) {
-        final d = docs[index];
-        final data = d.data();
-        final type = data['type'] ?? '';
-        if (type == 'invite') {
-          return InviteNotificationItem(
-            doc: d,
-            onAccept: () => onAccept(d),
-            onDecline: () => onDecline(d),
-          );
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(data['message'] ?? 'Notification'),
-        );
-      },
     );
   }
 }
@@ -284,7 +269,7 @@ class InviteNotificationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = doc.data() ?? {};
+    final data = doc.data()!;
     final from = data['fromEmail'] ?? '';
     final expName = data['experienceName'] ?? '';
     final createdAt = data['createdAt'] as Timestamp?;
