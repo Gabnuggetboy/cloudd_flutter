@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloudd_flutter/services/device_loading_service.dart';
 
 class iCubeTestPage extends StatefulWidget {
   final bool selectionMode;
@@ -23,7 +24,6 @@ class iCubeTestPage extends StatefulWidget {
 }
 
 class _iCubeTestPageState extends State<iCubeTestPage> {
-  final String apiBaseUrl = 'http://192.168.0.143:5000';
   List<dynamic> contents = [];
   bool isLoading = true;
   String? errorMessage;
@@ -184,19 +184,24 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
     });
 
     try {
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/contents'))
-          .timeout(requestTimeout);
+      final result = await DeviceLoadingService.fetchICubeContents();
 
-      if (response.statusCode == 200) {
-        final contentsList = json.decode(response.body) as List<dynamic>;
+      if (result.error != null) {
+        setState(() {
+          errorMessage = result.error;
+          isLoading = false;
+        });
+      } else {
+        final contentsList = result.contents as List<dynamic>;
 
         // Fetch tags for each content
         for (var content in contentsList) {
           if (content['has_tag'] == true && content['tag_url'] != null) {
             try {
               final tagResponse = await http
-                  .get(Uri.parse('$apiBaseUrl${content['tag_url']}'))
+                  .get(
+                    Uri.parse('http://192.168.0.143:5000${content['tag_url']}'),
+                  )
                   .timeout(requestTimeout);
 
               if (tagResponse.statusCode == 200) {
@@ -216,11 +221,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
 
         setState(() {
           contents = contentsList;
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          errorMessage = 'Failed to load contents: ${response.statusCode}';
           isLoading = false;
         });
       }
@@ -247,12 +247,12 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         }
       }
 
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/launch/$contentName'))
-          .timeout(requestTimeout);
+      final result = await DeviceLoadingService.launchContent(
+        'iCube',
+        contentName,
+      );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (result.success) {
         setState(() {
           runningContent = contentName;
         });
@@ -263,14 +263,14 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Launching ${data['content']}: ${data['status']}'),
-            duration: Duration(seconds: 2),
+            content: Text('Launching $contentName: ${result.message}'),
+            duration: const Duration(seconds: 2),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to launch content'),
+            content: Text('Failed to launch content: ${result.message}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -284,48 +284,30 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
 
   Future<bool> stopContent(String contentName) async {
     try {
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/close/$contentName'))
-          .timeout(requestTimeout);
+      final result = await DeviceLoadingService.stopContent(
+        'iCube',
+        contentName,
+      );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'success') {
-          setState(() {
-            runningContent = null;
-          });
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('running_content');
-          } catch (_) {}
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Stopped ${data['closed_exe']}'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          return true;
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${data['message']}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return false;
-        }
-      } else if (response.statusCode == 404) {
+      if (result.success) {
+        setState(() {
+          runningContent = null;
+        });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('running_content');
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Build executable not found'),
-            backgroundColor: Colors.red,
+            content: Text('Stopped $contentName'),
+            duration: const Duration(seconds: 2),
           ),
         );
-        return false;
+        return true;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to stop content'),
+            content: Text('Error: ${result.message}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -333,7 +315,10 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Failed to stop content: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
       return false;
     }
@@ -609,7 +594,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
                 child: Stack(
                   children: [
                     Image.network(
-                      '$apiBaseUrl${content['icon_url']}',
+                      'http://192.168.0.143:5000${content['icon_url']}',
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(

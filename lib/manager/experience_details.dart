@@ -84,29 +84,22 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
     try {
       // Try common user collections
-      final managersSnap = await FirebaseFirestore.instance
-          .collection('Managers')
-          .where('email', isGreaterThanOrEqualTo: query)
-          .where('email', isLessThanOrEqualTo: end)
-          .limit(10)
-          .get();
-
-      for (var d in managersSnap.docs) {
-        results.add({'email': d['email'], 'uid': d.id});
-      }
-
+      final currentUser = FirebaseAuth.instance.currentUser;
       final usersSnap = await FirebaseFirestore.instance
           .collection('users')
+          .where('role', isEqualTo: 'Manager')
           .where('email', isGreaterThanOrEqualTo: query)
           .where('email', isLessThanOrEqualTo: end)
           .limit(10)
           .get();
 
       for (var d in usersSnap.docs) {
+        // Skip suggesting the current user themselves
+        if (currentUser != null && d.id == currentUser.uid) continue;
         results.add({'email': d['email'], 'uid': d.id});
       }
     } catch (e) {
-      // nth
+      // ignore errors here
     }
 
     // To remove collaborators that are already added from the seach bar dropdown
@@ -254,6 +247,13 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       final email = rawEmail.toLowerCase();
       final uid = s['uid'] as String?;
 
+      // Prevent inviting yourself
+      if (currentUser.email != null &&
+          email == currentUser.email!.toLowerCase()) {
+        // skip self-invite
+        continue;
+      }
+
       // avoid duplicates
       final alreadyPending = existing.any(
         (c) => (c['email'] as String?)?.toLowerCase() == email,
@@ -381,12 +381,24 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
     if (result != null) {
       // Accept either a single String (backwards compatible) or a List<String>
+      // Only add booths that are not already present for this device
+      final existingContents = booths
+          .where((b) => b['device'] == device && b['contentName'] != null)
+          .map((b) => (b['contentName'] as String).toLowerCase())
+          .toSet();
+
       if (result is String) {
-        _addBooth(device, contentName: result);
+        final name = result.trim();
+        if (!existingContents.contains(name.toLowerCase())) {
+          _addBooth(device, contentName: name);
+        }
       } else if (result is List) {
         for (var item in result) {
           if (item is String) {
-            _addBooth(device, contentName: item); //
+            final name = item.trim();
+            if (!existingContents.contains(name.toLowerCase())) {
+              _addBooth(device, contentName: name);
+            }
           }
         }
       }

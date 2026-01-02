@@ -6,6 +6,10 @@ import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
 import 'package:cloudd_flutter/user/category_experiences_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloudd_flutter/services/recently_played_service.dart';
+import 'package:cloudd_flutter/user/models/recently_played.dart';
+import 'package:cloudd_flutter/services/device_loading_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -56,7 +60,7 @@ class _HomePageState extends State<HomePage> {
         child: Stack(
           children: [
             SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 96),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -134,12 +138,18 @@ class _HomePageState extends State<HomePage> {
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         // Extract unique categories
                         final categories = snapshot.data!.docs
-                            .map((doc) => (doc.data() as Map<String, dynamic>)['category'])
+                            .map(
+                              (doc) =>
+                                  (doc.data()
+                                      as Map<String, dynamic>)['category'],
+                            )
                             .where((c) => c != null && c.toString().isNotEmpty)
                             .map((c) => c.toString())
                             .toSet()
@@ -160,8 +170,9 @@ class _HomePageState extends State<HomePage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) =>
-                                        CategoryExperiencesPage(category: category),
+                                    builder: (_) => CategoryExperiencesPage(
+                                      category: category,
+                                    ),
                                   ),
                                 );
                               },
@@ -175,7 +186,12 @@ class _HomePageState extends State<HomePage> {
                                       height: 65,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: const Color.fromRGBO(143, 148, 251, 1),
+                                        color: const Color.fromRGBO(
+                                          143,
+                                          148,
+                                          251,
+                                          1,
+                                        ),
                                       ),
                                       child: const Icon(
                                         Icons.category,
@@ -199,7 +215,6 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
                   ),
-
 
                   const SizedBox(height: 30),
 
@@ -329,7 +344,6 @@ class _HomePageState extends State<HomePage> {
                   //           },
                   //         ),
                   // ),
-
                   const SizedBox(height: 30),
 
                   /// Recently Played Header
@@ -338,41 +352,162 @@ class _HomePageState extends State<HomePage> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 10),
 
-                  /// Recently Played Row
+                  /// Recently Played Row (from Firestore per user)
                   SizedBox(
-                    height: 140,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: MediaQuery.of(context).size.width * 0.42,
-                          margin: EdgeInsets.only(
-                            right: 15,
-                            left: index == 0 ? 0 : 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD8CFCF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/images/recently_played_${index + 1}.png',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Center(
-                                  child: Icon(
-                                    Icons.image,
-                                    size: 50,
-                                    color: Colors.grey,
+                    height: 160,
+                    child: StreamBuilder<List<RecentlyPlayed>>(
+                      stream: RecentlyPlayedService.streamCurrentUserRecent(
+                      ),
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          return Center(child: Text('Error: ${snap.error}'));
+                        }
+                        if (!snap.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
+                        final items = snap.data!;
+                        if (items.isEmpty) {
+                          return const Center(
+                            child: Text('No recently played content'),
+                          );
+                        }
+
+                        // Fetch device contents once so we can try to find logos
+                        return FutureBuilder<Map<String, DeviceContentResult>>(
+                          future: DeviceLoadingService.fetchAllDeviceContents(),
+                          builder: (context, deviceSnap) {
+                            final deviceMap = deviceSnap.data;
+
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: items.length,
+                              padding: EdgeInsets.zero,
+                              itemBuilder: (context, index) {
+                                final rp = items[index];
+
+                                // Prefer stored logoUrl from the RecentlyPlayed record
+                                String? logoUrl =
+                                    (rp.logoUrl != null &&
+                                        rp.logoUrl!.isNotEmpty)
+                                    ? rp.logoUrl
+                                    : null;
+
+                                // Fallback: try to find a logo/url from the device contents
+                                if (logoUrl == null && deviceMap != null) {
+                                  final dev = deviceMap[rp.device];
+                                  if (dev != null) {
+                                    for (final c in dev.contents) {
+                                      if (c is Map<String, dynamic>) {
+                                        final name =
+                                            (c['name'] ?? c['title'] ?? '')
+                                                as String;
+                                        if (name.isNotEmpty &&
+                                            name.toLowerCase() ==
+                                                rp.boothName.toLowerCase()) {
+                                          logoUrl =
+                                              (c['logo'] ??
+                                                      c['thumbnail'] ??
+                                                      c['image'])
+                                                  as String?;
+                                          break;
+                                        }
+                                      } else if (c is String) {
+                                        if (c.toLowerCase() ==
+                                            rp.boothName.toLowerCase()) {
+                                          // no metadata available
+                                          logoUrl = null;
+                                          break;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+
+                                return Container(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.42,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  // padding: const EdgeInsets.all(0),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.rectangle,
+                                          color: const Color(0xFFEFEFEF),
+                                        ),
+                                        child: ClipOval(
+                                          child: logoUrl != null
+                                              ? Image.network(
+                                                  logoUrl,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder:
+                                                      (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) => const Icon(
+                                                        Icons.image,
+                                                        size: 40,
+                                                        color: Colors.grey,
+                                                      ),
+                                                )
+                                              : const Center(
+                                                  child: Icon(
+                                                    Icons.videogame_asset,
+                                                    size: 40,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        rp.boothName,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        rp.device,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        rp.experienceName,
+                                        style: const TextStyle(fontSize: 12),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
-                            ),
-                          ),
+                            );
+                          },
                         );
                       },
                     ),
@@ -490,9 +625,6 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            // Hidden WebView for scraping
-            // if (_showWebView)
-              // HiddenWebViewScraper(onDataFetched: _onGamesFetched),
           ],
         ),
       ),
