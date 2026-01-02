@@ -6,6 +6,9 @@ import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
 import 'package:cloudd_flutter/user/category_experiences_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,10 +23,15 @@ class _HomePageState extends State<HomePage> {
   bool _isRefreshing = false;
   // bool _showWebView = false;
 
+  List<QueryDocumentSnapshot> _recommendedExperiences = [];
+  bool _recommendedLoading = true;
+
+
   @override
   void initState() {
     super.initState();
     _loadGames();
+    _loadRecommendedExperiences();
   }
 
   void _loadGames() {
@@ -37,6 +45,78 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _isRefreshing = true;
       // _showWebView = true;
+    });
+  }
+
+  Future<void> _loadRecommendedExperiences() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _recommendedLoading = true);
+
+    //Get user signups
+    final signupsSnap = await FirebaseFirestore.instance
+        .collection('experience_signups')
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    if (signupsSnap.docs.isEmpty) {
+      setState(() {
+        _recommendedExperiences = [];
+        _recommendedLoading = false;
+      });
+      return;
+    }
+
+    //Get signed up experiences
+    final experienceIds =
+        signupsSnap.docs.map((d) => d['experienceId']).toSet().toList();
+
+    final experiencesSnap = await FirebaseFirestore.instance
+        .collection('Experiences')
+        .where(FieldPath.documentId, whereIn: experienceIds)
+        .get();
+
+    //Count categories
+    final Map<String, int> categoryCount = {};
+    for (final doc in experiencesSnap.docs) {
+      final category = doc['category'];
+      if (category != null) {
+        categoryCount[category] = (categoryCount[category] ?? 0) + 1;
+      }
+    }
+
+    if (categoryCount.isEmpty) {
+      setState(() {
+        _recommendedExperiences = [];
+        _recommendedLoading = false;
+      });
+      return;
+    }
+
+    //Top 2 categories
+    final topCategories = categoryCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final selectedCategories =
+        topCategories.take(2).map((e) => e.key).toList();
+
+    //Fetch experiences from those categories
+    final recSnap = await FirebaseFirestore.instance
+        .collection('Experiences')
+        .where('category', whereIn: selectedCategories)
+        .where('active', isEqualTo: true)
+        .get();
+
+    final shuffled = recSnap.docs
+      .where((doc) => !experienceIds.contains(doc.id))
+      .toList()
+    ..shuffle(Random());
+
+
+    setState(() {
+      _recommendedExperiences = shuffled.take(6).toList();
+      _recommendedLoading = false;
     });
   }
 
@@ -203,132 +283,118 @@ class _HomePageState extends State<HomePage> {
 
                   const SizedBox(height: 30),
 
-                  /// Recommended Header
+                  /// Recommended Header with Refresh
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "Recommended",
+                        "Recommended for You",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       IconButton(
-                        icon: _isRefreshing
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.refresh),
-                        onPressed: _isRefreshing ? null : _refreshGames,
-                        tooltip: 'Refresh',
+                        icon: const Icon(Icons.refresh),
+                        tooltip: "Refresh recommendations",
+                        onPressed: _recommendedLoading
+                            ? null
+                            : () {
+                                _loadRecommendedExperiences();
+                              },
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 10),
 
-                  /// Recommended Boxes
-                  // SizedBox(
-                  //   height: 140,
-                  //   child: _isLoading
-                  //       // ? const Center(child: CircularProgressIndicator())
-                  //       // : _recommendedGames.isEmpty
-                  //       ? const Center(
-                  //           child: Text(
-                  //             'No games available',
-                  //             style: TextStyle(color: Colors.grey),
-                  //           ),
-                  //         )
-                  //       : ListView.builder(
-                  //           scrollDirection: Axis.horizontal,
-                  //           // itemCount: _recommendedGames.length,
-                  //           itemBuilder: (context, index) {
-                  //             // final game = _recommendedGames[index];
-                  //             return Container(
-                  //               width: MediaQuery.of(context).size.width * 0.42,
-                  //               margin: EdgeInsets.only(
-                  //                 right: 15,
-                  //                 left: index == 0 ? 0 : 0,
-                  //               ),
-                  //               decoration: BoxDecoration(
-                  //                 color: const Color(0xFFD8CFCF),
-                  //                 borderRadius: BorderRadius.circular(12),
-                  //               ),
-                  //               child: ClipRRect(
-                  //                 borderRadius: BorderRadius.circular(12),
-                  //                 child: Stack(
-                  //                   fit: StackFit.expand,
-                  //                   children: [
-                  //                     Image.network(
-                  //                       // game.imageUrl,
-                  //                       // fit: BoxFit.cover,
-                  //                       errorBuilder:
-                  //                           (context, error, stackTrace) {
-                  //                             return const Center(
-                  //                               child: Icon(
-                  //                                 Icons.image,
-                  //                                 size: 50,
-                  //                                 color: Colors.grey,
-                  //                               ),
-                  //                             );
-                  //                           },
-                  //                       loadingBuilder:
-                  //                           (context, child, loadingProgress) {
-                  //                             if (loadingProgress == null) {
-                  //                               return child;
-                  //                             }
-                  //                             return const Center(
-                  //                               child:
-                  //                                   CircularProgressIndicator(),
-                  //                             );
-                  //                           },
-                  //                     ),
-                  //                     Center(
-                  //                       child: Container(
-                  //                         padding: const EdgeInsets.symmetric(
-                  //                           horizontal: 16,
-                  //                           vertical: 8,
-                  //                         ),
-                  //                         decoration: BoxDecoration(
-                  //                           color: Colors.black.withValues(
-                  //                             alpha: 0.6,
-                  //                           ),
-                  //                           borderRadius: BorderRadius.circular(
-                  //                             20,
-                  //                           ),
-                  //                         ),
-                  //                         child: const Row(
-                  //                           mainAxisSize: MainAxisSize.min,
-                  //                           children: [
-                  //                             Icon(
-                  //                               Icons.play_arrow,
-                  //                               color: Colors.white,
-                  //                               size: 20,
-                  //                             ),
-                  //                             SizedBox(width: 4),
-                  //                             Text(
-                  //                               'Play',
-                  //                               style: TextStyle(
-                  //                                 color: Colors.white,
-                  //                                 fontWeight: FontWeight.w600,
-                  //                               ),
-                  //                             ),
-                  //                           ],
-                  //                         ),
-                  //                       ),
-                  //                     ),
-                  //                   ],
-                  //                 ),
-                  //               ),
-                  //             );
-                  //           },
-                  //         ),
-                  // ),
+                  SizedBox(
+                    height: 190,
+                    child: _recommendedLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _recommendedExperiences.isEmpty
+                            ? const Center(child: Text('No recommendations yet'))
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _recommendedExperiences.length,
+                                itemBuilder: (context, index) {
+                                  final doc = _recommendedExperiences[index];
+                                  final data = doc.data() as Map<String, dynamic>;
+
+                                  final name = data['name'] ?? 'Untitled';
+                                  final booths = (data['booths'] as List?) ?? [];
+                                  final imageUrl = data['imageUrl'];
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ExploreExperiencePage(
+                                            experienceId: doc.id,
+                                            experienceName: name,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: MediaQuery.of(context).size.width * 0.6,
+                                      margin: const EdgeInsets.only(right: 15),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        color: Theme.of(context).colorScheme.surface,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: const BorderRadius.vertical(
+                                                top: Radius.circular(12),
+                                              ),
+                                              child: imageUrl != null
+                                                  ? Image.network(
+                                                      imageUrl,
+                                                      width: double.infinity,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : Container(
+                                                      color: Colors.grey[300],
+                                                      child: const Center(
+                                                        child: Icon(Icons.image, size: 40),
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(10),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${booths.length} booth${booths.length == 1 ? '' : 's'}',
+                                                  style: const TextStyle(fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
 
                   const SizedBox(height: 30),
 

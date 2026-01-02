@@ -272,20 +272,14 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                               width: 72,
                                               height: 72,
                                               decoration: BoxDecoration(
-                                                color: Colors.red,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: const Align(
-                                                alignment: Alignment.topRight,
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(4.0),
-                                                  child: Icon(
-                                                    Icons.star,
-                                                    color: Colors.white,
-                                                    size: 16,
-                                                  ),
-                                                ),
+                                                borderRadius: BorderRadius.circular(8),
+                                                image: dataMap['imageUrl'] != null
+                                                    ? DecorationImage(
+                                                        image: NetworkImage(dataMap['imageUrl']),
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : null,
+                                                color: dataMap['imageUrl'] == null ? Colors.grey[300] : null,
                                               ),
                                             ),
 

@@ -6,6 +6,10 @@ import 'add_icubecontent_page.dart';
 import 'add_irigcontent_page.dart';
 import 'add_icreatecontent_page.dart';
 import 'add_storytimecontent_page.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
 
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
@@ -19,6 +23,10 @@ class ExperienceDetailsPage extends StatefulWidget {
 class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _collabSearchController = TextEditingController();
+
+  File? _selectedImage;
+  String? _imageUrl;
+  bool _uploadingImage = false;
 
   String? category;
 
@@ -61,14 +69,48 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     _nameController.text = data["name"];
     category = data["category"];
     enabled = data["enabled"];
+    _imageUrl = data["imageUrl"];
     if (data["booths"] != null) {
       booths = List<Map<String, dynamic>>.from(data["booths"]);
     }
     if (data["collaborators"] != null) {
       collaborators = List<Map<String, dynamic>>.from(data["collaborators"]);
     }
-
     setState(() {});
+  }
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedImage = File(picked.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(String experienceId) async {
+    if (_selectedImage == null) return _imageUrl;
+
+    try {
+      setState(() => _uploadingImage = true);
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('experience_images')
+          .child('$experienceId.jpg');
+
+      await ref.putFile(_selectedImage!);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      debugPrint("Image upload failed: $e");
+      return null;
+    } finally {
+      setState(() => _uploadingImage = false);
+    }
   }
 
   Future<void> _searchUsers(String query) async {
@@ -83,20 +125,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     final List<Map<String, dynamic>> results = [];
 
     try {
-      // Try common user collections
-      final managersSnap = await FirebaseFirestore.instance
-          .collection('Managers')
-          .where('email', isGreaterThanOrEqualTo: query)
-          .where('email', isLessThanOrEqualTo: end)
-          .limit(10)
-          .get();
-
-      for (var d in managersSnap.docs) {
-        results.add({'email': d['email'], 'uid': d.id});
-      }
 
       final usersSnap = await FirebaseFirestore.instance
           .collection('users')
+          .where('role', isEqualTo: 'Manager')
           .where('email', isGreaterThanOrEqualTo: query)
           .where('email', isLessThanOrEqualTo: end)
           .limit(10)
@@ -106,7 +138,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         results.add({'email': d['email'], 'uid': d.id});
       }
     } catch (e) {
-      // nth
+      print(e);
     }
 
     // To remove collaborators that are already added from the seach bar dropdown
@@ -128,6 +160,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
   Future<void> _save() async {
     final currentUser = FirebaseAuth.instance.currentUser;
+    String experienceId;
 
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,15 +182,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     final ref = FirebaseFirestore.instance.collection("Experiences");
 
     if (editing) {
-      await ref.doc(widget.experienceId).update({
-        "name": _nameController.text,
-        "enabled": enabled,
-        "category": category,
-        "last_updated": Timestamp.now(),
-        "booths": booths,
-      });
-    } else {
-      await ref.add({
+      experienceId = widget.experienceId!;
+    } 
+    else {
+      final doc = await ref.add({
         "name": _nameController.text,
         "enabled": true,
         "category": category,
@@ -165,7 +193,19 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         "last_updated": Timestamp.now(),
         "booths": booths,
       });
+      experienceId = doc.id;
     }
+
+    final imageUrl = await _uploadImage(experienceId);
+
+    await ref.doc(experienceId).update({
+      "name": _nameController.text,
+      "enabled": enabled,
+      "category": category,
+      "last_updated": Timestamp.now(),
+      "booths": booths,
+      if (imageUrl != null) "imageUrl": imageUrl,
+    });
 
     Navigator.pop(context);
   }
@@ -407,6 +447,37 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: "Experience Name"),
+              ),
+
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey),
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: _selectedImage != null
+                          ? FileImage(_selectedImage!)
+                          : (_imageUrl != null
+                              ? NetworkImage(_imageUrl!)
+                              : const AssetImage('assets/placeholder.png')
+                                  as ImageProvider),
+                    ),
+                  ),
+                  child: _uploadingImage
+                      ? const Center(child: CircularProgressIndicator())
+                      : const Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Icon(Icons.camera_alt, color: Colors.white),
+                          ),
+                        ),
+                ),
               ),
 
               const SizedBox(height: 16),
