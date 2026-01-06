@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class DeviceLoadingService {
   static const String icubeBase = 'http://192.168.0.143:5000';
-  static const String irigBase = 'http://192.168.0.126:5000';
+  static const String irigBase = 'http://192.168.1.81:5000';
   static const String icreateBase = 'http://192.168.0.129:5000';
   static const String storytimeBase = 'http://192.168.0.103:5000';
 
@@ -94,6 +94,16 @@ class DeviceLoadingService {
       default:
         return '';
     }
+  }
+
+  /// url for content icon
+  static String getContentIconUrl(String device, String iconPath) {
+    return '${getBaseUrl(device)}$iconPath';
+  }
+
+  /// url for content tag
+  static String getContentTagUrl(String device, String tagPath) {
+    return '${getBaseUrl(device)}$tagPath';
   }
 
   /// Launches content on a specific device

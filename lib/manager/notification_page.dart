@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
+import 'package:cloudd_flutter/models/notification.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 
 // Reusable helper to delete a notification document from anywhere.
 Future<void> deleteNotificationDoc(
@@ -47,8 +49,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Future<void> _acceptInvite(
     DocumentSnapshot<Map<String, dynamic>> notifDoc,
   ) async {
-    final data = notifDoc.data()!;
-    final expId = data['experienceId'];
+    final notification = AppNotification.fromDoc(notifDoc);
+    final expId = notification.experienceId;
     final user = FirebaseAuth.instance.currentUser;
     final userEmail = user?.email?.toLowerCase();
     final userUid = user?.uid;
@@ -99,8 +101,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Future<void> _declineInvite(
     DocumentSnapshot<Map<String, dynamic>> notifDoc,
   ) async {
-    final data = notifDoc.data()!;
-    final expId = data['experienceId'];
+    final notification = AppNotification.fromDoc(notifDoc);
+    final expId = notification.experienceId;
     final user = FirebaseAuth.instance.currentUser;
     final userEmail = user?.email?.toLowerCase();
     if (expId == null || userEmail == null) return;
@@ -224,9 +226,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               itemCount: docs.length,
                               itemBuilder: (context, index) {
                                 final d = docs[index];
-                                final data = d.data();
-                                final type = data['type'] ?? '';
-                                if (type == 'invite') {
+                                final notification = AppNotification.fromDoc(d);
+                                if (notification.type == 'invite') {
                                   return InviteNotificationItem(
                                     doc: d,
                                     onAccept: () => _acceptInvite(d),
@@ -238,7 +239,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                     vertical: 12,
                                   ),
                                   child: Text(
-                                    data['message'] ?? 'Notification',
+                                    notification.message ?? 'Notification',
                                   ),
                                 );
                               },
@@ -269,13 +270,11 @@ class InviteNotificationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = doc.data()!;
-    final from = data['fromEmail'] ?? '';
-    final expName = data['experienceName'] ?? '';
-    final createdAt = data['createdAt'] as Timestamp?;
-    final timeText = createdAt != null
-        ? createdAt.toDate().toString().split('.').first
-        : '';
+    final notification = AppNotification.fromDoc(doc);
+    final from = notification.senderEmail ?? '';
+    final expName = notification.experienceName ?? '';
+    final createdAt = notification.createdAt;
+    final timeText = createdAt.toDate().toString().split('.').first;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 12),

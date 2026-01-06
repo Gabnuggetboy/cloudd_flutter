@@ -6,9 +6,9 @@ import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
 import 'package:cloudd_flutter/user/category_experiences_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloudd_flutter/services/recently_played_service.dart';
-import 'package:cloudd_flutter/user/models/recently_played.dart';
+import 'package:cloudd_flutter/models/recently_played.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -144,14 +144,14 @@ class _HomePageState extends State<HomePage> {
                         }
 
                         // Extract unique categories
-                        final categories = snapshot.data!.docs
-                            .map(
-                              (doc) =>
-                                  (doc.data()
-                                      as Map<String, dynamic>)['category'],
-                            )
-                            .where((c) => c != null && c.toString().isNotEmpty)
-                            .map((c) => c.toString())
+                        final experiences = snapshot.data!.docs
+                            .map((doc) => Experience.fromDoc(doc))
+                            .toList();
+
+                        final categories = experiences
+                            .map((exp) => exp.category)
+                            .where((c) => c != null && c.isNotEmpty)
+                            .cast<String>()
                             .toSet()
                             .toList();
 
@@ -346,7 +346,7 @@ class _HomePageState extends State<HomePage> {
                   // ),
                   const SizedBox(height: 30),
 
-                  /// Recently Played Header
+                  // Recently Played Header
                   const Text(
                     "Recently Played",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
@@ -354,12 +354,11 @@ class _HomePageState extends State<HomePage> {
 
                   const SizedBox(height: 10),
 
-                  /// Recently Played Row (from Firestore per user)
+                  // Recently Played Row (from Firestore per user)
                   SizedBox(
-                    height: 160,
+                    height: 200,
                     child: StreamBuilder<List<RecentlyPlayed>>(
-                      stream: RecentlyPlayedService.streamCurrentUserRecent(
-                      ),
+                      stream: RecentlyPlayedService.streamCurrentUserRecent(),
                       builder: (context, snap) {
                         if (snap.hasError) {
                           return Center(child: Text('Error: ${snap.error}'));
@@ -390,7 +389,6 @@ class _HomePageState extends State<HomePage> {
                               itemBuilder: (context, index) {
                                 final rp = items[index];
 
-                                // Prefer stored logoUrl from the RecentlyPlayed record
                                 String? logoUrl =
                                     (rp.logoUrl != null &&
                                         rp.logoUrl!.isNotEmpty)
@@ -431,7 +429,7 @@ class _HomePageState extends State<HomePage> {
                                 return Container(
                                   width:
                                       MediaQuery.of(context).size.width * 0.42,
-                                  margin: const EdgeInsets.only(right: 12),
+                                  margin: const EdgeInsets.only(right: 10),
                                   // padding: const EdgeInsets.all(0),
                                   decoration: BoxDecoration(
                                     color: Theme.of(
@@ -443,13 +441,13 @@ class _HomePageState extends State<HomePage> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Container(
-                                        width: 80,
-                                        height: 80,
+                                        width: 160,
+                                        height: 100,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.rectangle,
                                           color: const Color(0xFFEFEFEF),
                                         ),
-                                        child: ClipOval(
+                                        child: ClipRect(
                                           child: logoUrl != null
                                               ? Image.network(
                                                   logoUrl,
@@ -474,7 +472,7 @@ class _HomePageState extends State<HomePage> {
                                                 ),
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 4),
                                       Text(
                                         rp.boothName,
                                         style: const TextStyle(
@@ -485,7 +483,7 @@ class _HomePageState extends State<HomePage> {
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.center,
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       Text(
                                         rp.device,
                                         style: const TextStyle(
@@ -501,6 +499,27 @@ class _HomePageState extends State<HomePage> {
                                         style: const TextStyle(fontSize: 12),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      // show playtime if it exists
+                                      Builder(
+                                        builder: (context) {
+                                          final int secs = rp.playtimeSeconds;
+                                          if (secs <= 0)
+                                            return const SizedBox();
+                                          final mins = rp.playtimeMinutes;
+                                          final remainder = secs % 60;
+                                          final playtimeText = mins > 0
+                                              ? '${mins}m ${remainder}s'
+                                              : '${remainder}s';
+                                          return Text(
+                                            "Playtime: $playtimeText",
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -549,8 +568,11 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        final docs = snapshot.data!.docs;
-                        if (docs.isEmpty) {
+                        final experiences = snapshot.data!.docs
+                            .map((doc) => Experience.fromDoc(doc))
+                            .toList();
+
+                        if (experiences.isEmpty) {
                           return const Center(
                             child: Text('No experiences yet'),
                           );
@@ -558,15 +580,10 @@ class _HomePageState extends State<HomePage> {
 
                         return ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: docs.length,
+                          itemCount: experiences.length,
                           padding: EdgeInsets.zero,
                           itemBuilder: (context, index) {
-                            final doc = docs[index];
-                            final data =
-                                (doc.data() as Map<String, dynamic>?) ?? {};
-                            final name =
-                                (data['name'] as String?) ?? 'Untitled';
-                            final booths = (data['booths'] as List?) ?? [];
+                            final experience = experiences[index];
 
                             return GestureDetector(
                               onTap: () {
@@ -574,8 +591,8 @@ class _HomePageState extends State<HomePage> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => ExploreExperiencePage(
-                                      experienceId: doc.id,
-                                      experienceName: name,
+                                      experienceId: experience.id,
+                                      experienceName: experience.name,
                                     ),
                                   ),
                                 );
@@ -594,7 +611,7 @@ class _HomePageState extends State<HomePage> {
                                     Expanded(
                                       child: Center(
                                         child: Text(
-                                          name,
+                                          experience.name,
                                           style: const TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
@@ -605,7 +622,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '${booths.length} booth${booths.length == 1 ? '' : 's'}',
+                                      '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Theme.of(

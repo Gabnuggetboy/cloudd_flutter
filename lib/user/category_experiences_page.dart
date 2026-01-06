@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'explore_experience_page.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 
 class CategoryExperiencesPage extends StatelessWidget {
   final String category;
 
-  const CategoryExperiencesPage({
-    super.key,
-    required this.category,
-  });
+  const CategoryExperiencesPage({super.key, required this.category});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(category),
-      ),
+      appBar: AppBar(title: Text(category)),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('Experiences')
@@ -29,21 +25,19 @@ class CategoryExperiencesPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data!.docs;
+          final experiences = snapshot.data!.docs
+              .map((doc) => Experience.fromDoc(doc))
+              .toList();
 
-          if (docs.isEmpty) {
-            return const Center(
-              child: Text('No experiences in this category'),
-            );
+          if (experiences.isEmpty) {
+            return const Center(child: Text('No experiences in this category'));
           }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
+            itemCount: experiences.length,
             itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final name = data['name'] ?? 'Untitled';
+              final experience = experiences[index];
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -52,19 +46,17 @@ class CategoryExperiencesPage extends StatelessWidget {
                 ),
                 child: ListTile(
                   title: Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    experience.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ExploreExperiencePage(
-                          experienceId: doc.id,
-                          experienceName: name,
+                        builder: (context) => ExploreExperiencePage(
+                          experienceId: experience.id,
+                          experienceName: experience.name,
                         ),
                       ),
                     );

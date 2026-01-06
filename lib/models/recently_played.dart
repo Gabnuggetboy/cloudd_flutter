@@ -9,6 +9,8 @@ class RecentlyPlayed {
   final String experienceName;
   final String? logoUrl;
   final Timestamp timestamp;
+  final int playtimeSeconds;
+  final int playtimeMinutes;
 
   RecentlyPlayed({
     required this.id,
@@ -19,12 +21,15 @@ class RecentlyPlayed {
     required this.experienceName,
     this.logoUrl,
     required this.timestamp,
+    this.playtimeSeconds = 0,
+    this.playtimeMinutes = 0,
   });
 
   factory RecentlyPlayed.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    // Only use the standardized `timestamp` field.
     final ts = (data['timestamp'] as Timestamp?) ?? Timestamp.now();
+    final playSec = (data['playtime_seconds'] as int?) ?? 0;
+    final playMin = (data['playtime_minutes'] as int?) ?? (playSec ~/ 60);
 
     return RecentlyPlayed(
       id: doc.id,
@@ -35,6 +40,8 @@ class RecentlyPlayed {
       experienceName: data['experienceName'] as String? ?? '',
       logoUrl: (data['logoUrl'] as String?) ?? (data['logo'] as String?),
       timestamp: ts,
+      playtimeSeconds: playSec,
+      playtimeMinutes: playMin,
     );
   }
 
@@ -46,6 +53,8 @@ class RecentlyPlayed {
       'experienceId': experienceId,
       'experienceName': experienceName,
       'logoUrl': logoUrl ?? '',
+      'playtime_seconds': playtimeSeconds,
+      'playtime_minutes': playtimeMinutes,
       'timestamp': timestamp,
     };
   }

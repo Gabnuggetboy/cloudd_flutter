@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
+import 'package:cloudd_flutter/models/manager_content_selection.dart';
 
 class StoryTimeTestPage extends StatefulWidget {
   final bool selectionMode;
@@ -52,13 +53,16 @@ class _StoryTimeTestPageState extends State<StoryTimeTestPage> {
 
     try {
       final doc = await FirebaseFirestore.instance
-          .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_storytime_${widget.experienceId}")
+          .collection('Experiences')
+          .doc(widget.experienceId)
+          .collection('ManagerContentSelections')
+          .doc('storytime_${widget.managerId}')
           .get();
 
-      if (doc.exists && doc.data()?['selectedContents'] != null) {
+      if (doc.exists) {
+        final selection = ManagerContentSelection.fromDoc(doc);
         setState(() {
-          selectedContents = Set<String>.from(doc.data()!['selectedContents']);
+          selectedContents = Set<String>.from(selection.selectedContents);
         });
       }
     } catch (_) {
@@ -71,16 +75,26 @@ class _StoryTimeTestPageState extends State<StoryTimeTestPage> {
     if (widget.managerId == null || widget.experienceId == null) return;
 
     try {
+      // Ensure parent experience document exists so subcollection is visible in console
       await FirebaseFirestore.instance
-          .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_storytime_${widget.experienceId}")
-          .set({
-            "managerId": widget.managerId,
-            "device": "Storytime",
-            "experienceId": widget.experienceId,
-            "selectedContents": selectedContents.toList(),
-            "lastUpdated": Timestamp.now(),
-          });
+          .collection('Experiences')
+          .doc(widget.experienceId)
+          .set({}, SetOptions(merge: true));
+
+      final selection = ManagerContentSelection(
+        id: 'storytime_${widget.managerId}',
+        managerId: widget.managerId!,
+        device: 'Storytime',
+        experienceId: widget.experienceId!,
+        selectedContents: selectedContents.toList(),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('Experiences')
+          .doc(widget.experienceId)
+          .collection('ManagerContentSelections')
+          .doc(selection.id)
+          .set(selection.toMap());
     } catch (_) {
       // ignore
     }
@@ -296,7 +310,10 @@ class _StoryTimeTestPageState extends State<StoryTimeTestPage> {
                                   child: Stack(
                                     children: [
                                       Image.network(
-                                        'http://192.168.0.103:5000${content['icon_url']}',
+                                        DeviceLoadingService.getContentIconUrl(
+                                          'storytime',
+                                          content['icon_url'] ?? '',
+                                        ),
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) {

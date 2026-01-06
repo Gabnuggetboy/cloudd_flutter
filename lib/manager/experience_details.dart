@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloudd_flutter/models/experience.dart';
+import 'package:cloudd_flutter/models/notification.dart';
 import 'add_icubecontent_page.dart';
 import 'add_irigcontent_page.dart';
 import 'add_icreatecontent_page.dart';
@@ -57,16 +59,12 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         .doc(widget.experienceId)
         .get();
 
-    final data = doc.data()!;
-    _nameController.text = data["name"];
-    category = data["category"];
-    enabled = data["enabled"];
-    if (data["booths"] != null) {
-      booths = List<Map<String, dynamic>>.from(data["booths"]);
-    }
-    if (data["collaborators"] != null) {
-      collaborators = List<Map<String, dynamic>>.from(data["collaborators"]);
-    }
+    final experience = Experience.fromDoc(doc);
+    _nameController.text = experience.name;
+    category = experience.category;
+    enabled = experience.enabled;
+    booths = List<Map<String, dynamic>>.from(experience.booths);
+    collaborators = List<Map<String, dynamic>>.from(experience.collaborators);
 
     setState(() {});
   }
@@ -271,17 +269,19 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       };
       existing.add(entry);
 
-      // create notification doc for recipient (store lower-case for matching)
-      await notifRef.add({
-        'recipientEmail': email,
-        'recipientUid': uid,
-        'type': 'invite',
-        'experienceId': widget.experienceId,
-        'experienceName': _nameController.text,
-        'fromEmail': currentUser.email?.toLowerCase(),
-        'status': 'unread',
-        'createdAt': Timestamp.now(),
-      });
+      // create notification doc for recipient using AppNotification model
+      final notification = AppNotification(
+        id: '', // Will be set by Firestore
+        recipientEmail: email,
+        recipientUid: uid,
+        type: 'invite',
+        experienceId: widget.experienceId ?? '',
+        experienceName: _nameController.text,
+        senderEmail: currentUser.email?.toLowerCase() ?? '',
+        status: 'unread',
+        createdAt: Timestamp.now(),
+      );
+      await notifRef.add(notification.toMap());
     }
 
     // to maintain quick lookup arrays for collaborator uids and emails

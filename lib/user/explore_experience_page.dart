@@ -8,6 +8,7 @@ import 'package:cloudd_flutter/manager/add_irigcontent_page.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/services/recently_played_service.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ExploreExperiencePage extends StatefulWidget {
@@ -42,6 +43,10 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   String? boothsError;
 
   Map<String, String?> runningContent = {};
+  // track when content was started (for duration calculation)
+  final Map<String, DateTime?> runningStart = {};
+  // map device -> recentlyPlayed doc id so we can update playtime on stop
+  final Map<String, String?> runningRecentDocId = {};
 
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
@@ -140,16 +145,11 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         });
         return;
       }
-      final data = (doc.data() as Map<String, dynamic>?) ?? {};
-      final raw = (data['booths'] as List?) ?? [];
-      final parsed = <Map<String, dynamic>>[];
-      for (var item in raw) {
-        if (item is Map) {
-          parsed.add(Map<String, dynamic>.from(item as Map));
-        }
-      }
+
+      final experience = Experience.fromDoc(doc);
+
       setState(() {
-        booths = parsed;
+        booths = experience.booths;
         boothsLoading = false;
       });
     } catch (e) {
@@ -191,7 +191,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       try {
         final uid = FirebaseAuth.instance.currentUser?.uid;
         if (uid != null && uid.isNotEmpty) {
-          await RecentlyPlayedService.addRecentlyPlayed(
+          final docId = await RecentlyPlayedService.addRecentlyPlayed(
             userId: uid,
             device: device,
             boothName: boothName ?? contentName,
@@ -199,6 +199,9 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
             experienceName: experienceName ?? widget.experienceName,
             logoUrl: logoUrl,
           );
+          // store start time and doc id to update playtime when stopped
+          runningStart[device] = DateTime.now();
+          runningRecentDocId[device] = docId;
         }
       } catch (e) {
         // ignore: avoid_print
@@ -223,9 +226,30 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     final result = await DeviceLoadingService.stopContent(device, contentName);
 
     if (result.success) {
+      // compute play duration and persist it if we have a start time and doc id
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        final start = runningStart[device];
+        final docId = runningRecentDocId[device];
+        if (uid != null && uid.isNotEmpty && start != null && docId != null) {
+          final seconds = DateTime.now().difference(start).inSeconds;
+          await RecentlyPlayedService.updatePlaytimeByDocId(
+            userId: uid,
+            docId: docId,
+            seconds: seconds,
+          );
+        }
+      } catch (e) {
+        // ignore: avoid_print
+        print('Failed updating playtime: $e');
+      }
+
       setState(() {
         runningContent[device] = null;
+        runningStart.remove(device);
+        runningRecentDocId.remove(device);
       });
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(result.message)));

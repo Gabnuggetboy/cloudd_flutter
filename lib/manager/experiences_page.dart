@@ -4,6 +4,7 @@ import 'package:cloudd_flutter/manager/widgets/bottom_navigation_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'experience_details.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 
 class ExperiencesPage extends StatefulWidget {
   const ExperiencesPage({super.key});
@@ -219,23 +220,17 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                   itemBuilder: (context, index) {
                                     final doc = docs[index];
                                     final experienceId = doc.id;
-                                    final dataMap =
-                                        (doc.data() as Map<String, dynamic>?) ??
-                                        {};
+                                    final experience = Experience.fromDoc(doc);
 
                                     final boothsCount =
-                                        (dataMap['booths'] as List?)?.length ??
-                                        0;
-                                    final name =
-                                        (dataMap['name'] as String?) ??
-                                        'Untitled Experience';
-                                    final enabled =
-                                        (dataMap['enabled'] as bool?) ?? false;
-                                    final lastUpdatedTimestamp =
-                                        dataMap['last_updated'] as Timestamp?;
+                                        experience.booths.length;
+                                    final name = experience.name.isEmpty
+                                        ? 'Untitled Experience'
+                                        : experience.name;
+                                    final enabled = experience.enabled;
                                     final lastUpdatedString =
-                                        lastUpdatedTimestamp != null
-                                        ? lastUpdatedTimestamp
+                                        experience.lastUpdated != null
+                                        ? experience.lastUpdated!
                                               .toDate()
                                               .toString()
                                               .substring(0, 10)
