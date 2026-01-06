@@ -638,7 +638,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     bool loading,
     String? error,
     String baseUrl,
-  ) {
+  ) 
+  {
     final filtered = _filter(list);
     if (loading) return const Center(child: CircularProgressIndicator());
     if (error != null) return Center(child: Text(error));
