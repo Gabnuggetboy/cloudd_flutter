@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 
 
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -26,14 +27,25 @@ class _HomePageState extends State<HomePage> {
   List<QueryDocumentSnapshot> _recommendedExperiences = [];
   bool _recommendedLoading = true;
 
+  List<QueryDocumentSnapshot> _popularExperiences = [];
+  bool _popularLoading = true;
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadGames();
     _loadRecommendedExperiences();
+    _loadMostPopularExperiences();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
   void _loadGames() {
     setState(() {
       _isLoading = true;
@@ -85,7 +97,7 @@ class _HomePageState extends State<HomePage> {
         categoryCount[category] = (categoryCount[category] ?? 0) + 1;
       }
     }
-
+    
     if (categoryCount.isEmpty) {
       setState(() {
         _recommendedExperiences = [];
@@ -105,8 +117,9 @@ class _HomePageState extends State<HomePage> {
     final recSnap = await FirebaseFirestore.instance
         .collection('Experiences')
         .where('category', whereIn: selectedCategories)
-        .where('active', isEqualTo: true)
+        .where('enabled', isEqualTo: true)
         .get();
+    
 
     final shuffled = recSnap.docs
       .where((doc) => !experienceIds.contains(doc.id))
@@ -119,6 +132,48 @@ class _HomePageState extends State<HomePage> {
       _recommendedLoading = false;
     });
   }
+  Future<void> _loadMostPopularExperiences() async {
+    setState(() => _popularLoading = true);
+
+    // 1. Get all signups
+    final signupsSnap = await FirebaseFirestore.instance
+        .collection('experience_signups')
+        .get();
+
+    if (signupsSnap.docs.isEmpty) {
+      setState(() {
+        _popularExperiences = [];
+        _popularLoading = false;
+      });
+      return;
+    }
+
+    // 2. Count signups per experience
+    final Map<String, int> counts = {};
+    for (final doc in signupsSnap.docs) {
+      final expId = doc['experienceId'];
+      counts[expId] = (counts[expId] ?? 0) + 1;
+    }
+
+    // 3. Sort by popularity
+    final sortedIds = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final topIds = sortedIds.take(6).map((e) => e.key).toList();
+
+    // 4. Fetch experience documents
+    final expSnap = await FirebaseFirestore.instance
+        .collection('Experiences')
+        .where(FieldPath.documentId, whereIn: topIds)
+        .where('enabled', isEqualTo: true)
+        .get();
+
+    setState(() {
+      _popularExperiences = expSnap.docs;
+      _popularLoading = false;
+    });
+  }
+
 
   // void _onGamesFetched(List<GameData> games) {
   //   setState(() {
@@ -166,13 +221,19 @@ class _HomePageState extends State<HomePage> {
                       ),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.search, size: 22),
-                        SizedBox(width: 10),
+                        const Icon(Icons.search, size: 22),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
-                            decoration: InputDecoration(
+                            controller: _searchController,
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value.trim();
+                              });
+                            },
+                            decoration: const InputDecoration(
                               hintText: "Search for Experience...",
                               border: InputBorder.none,
                             ),
@@ -181,6 +242,63 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ),
+
+                  /// Search Results
+                  if (_searchQuery.isNotEmpty) ...[
+                    const SizedBox(height: 15),
+                    SizedBox(
+                      height: 200,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('Experiences')
+                            .where('enabled', isEqualTo: true)
+                            .where('name', isGreaterThanOrEqualTo: _searchQuery)
+                            .where('name', isLessThan: _searchQuery + '\uf8ff')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+
+                          final docs = snapshot.data!.docs;
+
+                          if (docs.isEmpty) {
+                            return const Center(child: Text('No matching experiences'));
+                          }
+
+                          return ListView.builder(
+                            itemCount: docs.length,
+                            itemBuilder: (context, index) {
+                              final doc = docs[index];
+                              final data = doc.data() as Map<String, dynamic>;
+
+                              final name = data['name'] ?? 'Untitled';
+                              final booths = (data['booths'] as List?) ?? [];
+
+                              return ListTile(
+                                title: Text(name),
+                                subtitle: Text(
+                                  '${booths.length} booth${booths.length == 1 ? '' : 's'}',
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ExploreExperiencePage(
+                                        experienceId: doc.id,
+                                        experienceName: name,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+
 
                   const SizedBox(height: 25),
 
@@ -319,6 +437,126 @@ class _HomePageState extends State<HomePage> {
                                 itemCount: _recommendedExperiences.length,
                                 itemBuilder: (context, index) {
                                   final doc = _recommendedExperiences[index];
+                                  final data = doc.data() as Map<String, dynamic>;
+
+                                  final name = data['name'] ?? 'Untitled';
+                                  final booths = (data['booths'] as List?) ?? [];
+                                  final imageUrl = data['imageUrl'];
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ExploreExperiencePage(
+                                            experienceId: doc.id,
+                                            experienceName: name,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: MediaQuery.of(context).size.width * 0.6,
+                                      margin: const EdgeInsets.only(right: 15),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        color: Theme.of(context).colorScheme.surface,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: const BorderRadius.vertical(
+                                                top: Radius.circular(12),
+                                              ),
+                                              child: imageUrl != null
+                                                  ? Image.network(
+                                                      imageUrl,
+                                                      width: double.infinity,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : Container(
+                                                      color: Colors.grey[300],
+                                                      child: const Center(
+                                                        child: Icon(Icons.image, size: 40),
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(10),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${booths.length} booth${booths.length == 1 ? '' : 's'}',
+                                                  style: const TextStyle(fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                  
+                  const SizedBox(height: 30),
+
+                  /// Most Popular Header
+                  // const Text(
+                  //   "Most Popular",
+                  //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  // ),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Most Popular",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        tooltip: "Refresh popular experiences",
+                        onPressed: _recommendedLoading
+                            ? null
+                            : () {
+                                _loadMostPopularExperiences();
+                              },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    height: 190,
+                    child: _popularLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _popularExperiences.isEmpty
+                            ? const Center(child: Text('No popular experiences yet'))
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _popularExperiences.length,
+                                itemBuilder: (context, index) {
+                                  final doc = _popularExperiences[index];
                                   final data = doc.data() as Map<String, dynamic>;
 
                                   final name = data['name'] ?? 'Untitled';
