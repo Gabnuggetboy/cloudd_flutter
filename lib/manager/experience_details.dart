@@ -2,14 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloudd_flutter/models/experience.dart';
+import 'package:cloudd_flutter/models/notification.dart';
 import 'add_icubecontent_page.dart';
 import 'add_irigcontent_page.dart';
 import 'add_icreatecontent_page.dart';
 import 'add_storytimecontent_page.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
 
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
@@ -23,10 +21,6 @@ class ExperienceDetailsPage extends StatefulWidget {
 class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _collabSearchController = TextEditingController();
-
-  File? _selectedImage;
-  String? _imageUrl;
-  bool _uploadingImage = false;
 
   String? category;
 
@@ -65,52 +59,14 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         .doc(widget.experienceId)
         .get();
 
-    final data = doc.data()!;
-    _nameController.text = data["name"];
-    category = data["category"];
-    enabled = data["enabled"];
-    _imageUrl = data["imageUrl"];
-    if (data["booths"] != null) {
-      booths = List<Map<String, dynamic>>.from(data["booths"]);
-    }
-    if (data["collaborators"] != null) {
-      collaborators = List<Map<String, dynamic>>.from(data["collaborators"]);
-    }
+    final experience = Experience.fromDoc(doc);
+    _nameController.text = experience.name;
+    category = experience.category;
+    enabled = experience.enabled;
+    booths = List<Map<String, dynamic>>.from(experience.booths);
+    collaborators = List<Map<String, dynamic>>.from(experience.collaborators);
+
     setState(() {});
-  }
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selectedImage = File(picked.path);
-      });
-    }
-  }
-
-  Future<String?> _uploadImage(String experienceId) async {
-    if (_selectedImage == null) return _imageUrl;
-
-    try {
-      setState(() => _uploadingImage = true);
-
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('experience_images')
-          .child('$experienceId.jpg');
-
-      await ref.putFile(_selectedImage!);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      debugPrint("Image upload failed: $e");
-      return null;
-    } finally {
-      setState(() => _uploadingImage = false);
-    }
   }
 
   Future<void> _searchUsers(String query) async {
@@ -125,7 +81,8 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     final List<Map<String, dynamic>> results = [];
 
     try {
-
+      // Try common user collections
+      final currentUser = FirebaseAuth.instance.currentUser;
       final usersSnap = await FirebaseFirestore.instance
           .collection('users')
           .where('role', isEqualTo: 'Manager')
@@ -135,10 +92,12 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
           .get();
 
       for (var d in usersSnap.docs) {
+        // Skip suggesting the current user themselves
+        if (currentUser != null && d.id == currentUser.uid) continue;
         results.add({'email': d['email'], 'uid': d.id});
       }
     } catch (e) {
-      print(e);
+      // ignore errors here
     }
 
     // To remove collaborators that are already added from the seach bar dropdown
@@ -160,7 +119,6 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
   Future<void> _save() async {
     final currentUser = FirebaseAuth.instance.currentUser;
-    String experienceId;
 
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,10 +140,15 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     final ref = FirebaseFirestore.instance.collection("Experiences");
 
     if (editing) {
-      experienceId = widget.experienceId!;
-    } 
-    else {
-      final doc = await ref.add({
+      await ref.doc(widget.experienceId).update({
+        "name": _nameController.text,
+        "enabled": enabled,
+        "category": category,
+        "last_updated": Timestamp.now(),
+        "booths": booths,
+      });
+    } else {
+      await ref.add({
         "name": _nameController.text,
         "enabled": true,
         "category": category,
@@ -193,19 +156,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         "last_updated": Timestamp.now(),
         "booths": booths,
       });
-      experienceId = doc.id;
     }
-
-    final imageUrl = await _uploadImage(experienceId);
-
-    await ref.doc(experienceId).update({
-      "name": _nameController.text,
-      "enabled": enabled,
-      "category": category,
-      "last_updated": Timestamp.now(),
-      "booths": booths,
-      if (imageUrl != null) "imageUrl": imageUrl,
-    });
 
     Navigator.pop(context);
   }
@@ -294,6 +245,13 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       final email = rawEmail.toLowerCase();
       final uid = s['uid'] as String?;
 
+      // Prevent inviting yourself
+      if (currentUser.email != null &&
+          email == currentUser.email!.toLowerCase()) {
+        // skip self-invite
+        continue;
+      }
+
       // avoid duplicates
       final alreadyPending = existing.any(
         (c) => (c['email'] as String?)?.toLowerCase() == email,
@@ -311,17 +269,19 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       };
       existing.add(entry);
 
-      // create notification doc for recipient (store lower-case for matching)
-      await notifRef.add({
-        'recipientEmail': email,
-        'recipientUid': uid,
-        'type': 'invite',
-        'experienceId': widget.experienceId,
-        'experienceName': _nameController.text,
-        'fromEmail': currentUser.email?.toLowerCase(),
-        'status': 'unread',
-        'createdAt': Timestamp.now(),
-      });
+      // create notification doc for recipient using AppNotification model
+      final notification = AppNotification(
+        id: '', // Will be set by Firestore
+        recipientEmail: email,
+        recipientUid: uid,
+        type: 'invite',
+        experienceId: widget.experienceId ?? '',
+        experienceName: _nameController.text,
+        senderEmail: currentUser.email?.toLowerCase() ?? '',
+        status: 'unread',
+        createdAt: Timestamp.now(),
+      );
+      await notifRef.add(notification.toMap());
     }
 
     // to maintain quick lookup arrays for collaborator uids and emails
@@ -421,12 +381,24 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
     if (result != null) {
       // Accept either a single String (backwards compatible) or a List<String>
+      // Only add booths that are not already present for this device
+      final existingContents = booths
+          .where((b) => b['device'] == device && b['contentName'] != null)
+          .map((b) => (b['contentName'] as String).toLowerCase())
+          .toSet();
+
       if (result is String) {
-        _addBooth(device, contentName: result);
+        final name = result.trim();
+        if (!existingContents.contains(name.toLowerCase())) {
+          _addBooth(device, contentName: name);
+        }
       } else if (result is List) {
         for (var item in result) {
           if (item is String) {
-            _addBooth(device, contentName: item); //
+            final name = item.trim();
+            if (!existingContents.contains(name.toLowerCase())) {
+              _addBooth(device, contentName: name);
+            }
           }
         }
       }
@@ -447,37 +419,6 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: "Experience Name"),
-              ),
-
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  width: double.infinity,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey),
-                    image: DecorationImage(
-                      fit: BoxFit.cover,
-                      image: _selectedImage != null
-                          ? FileImage(_selectedImage!)
-                          : (_imageUrl != null
-                              ? NetworkImage(_imageUrl!)
-                              : const AssetImage('assets/placeholder.png')
-                                  as ImageProvider),
-                    ),
-                  ),
-                  child: _uploadingImage
-                      ? const Center(child: CircularProgressIndicator())
-                      : const Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Icon(Icons.camera_alt, color: Colors.white),
-                          ),
-                        ),
-                ),
               ),
 
               const SizedBox(height: 16),

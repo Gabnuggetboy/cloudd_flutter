@@ -6,8 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:cloudd_flutter/manager/add_icubecontent_page.dart';
 import 'package:cloudd_flutter/manager/add_irigcontent_page.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
+import 'package:cloudd_flutter/services/device_loading_service.dart';
+import 'package:cloudd_flutter/services/recently_played_service.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 
 class ExploreExperiencePage extends StatefulWidget {
   final String experienceId;
@@ -24,11 +26,6 @@ class ExploreExperiencePage extends StatefulWidget {
 }
 
 class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
-  final String icubeBase = 'http://192.168.0.143:5000';
-  final String irigBase = 'http://192.168.0.126:5000';
-  final String icreateBase = 'http://192.168.0.129:5000';
-  final String storytimeBase = 'http://192.168.0.103:5000';
-
   List<dynamic> icubeContents = [];
   List<dynamic> irigContents = [];
   List<dynamic> icreateContents = [];
@@ -46,6 +43,10 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   String? boothsError;
 
   Map<String, String?> runningContent = {};
+  // track when content was started (for duration calculation)
+  final Map<String, DateTime?> runningStart = {};
+  // map device -> recentlyPlayed doc id so we can update playtime on stop
+  final Map<String, String?> runningRecentDocId = {};
 
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
@@ -65,70 +66,20 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     searchController.dispose();
     super.dispose();
   }
-  Stream<QuerySnapshot> signupStream() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Stream.empty();
-    }
-
-    return FirebaseFirestore.instance
-        .collection('experience_signups')
-        .where('experienceId', isEqualTo: widget.experienceId)
-        .where('userId', isEqualTo: user.uid)
-        .limit(1)
-        .snapshots();
-  }
-
-  Future<void> signUp() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    await FirebaseFirestore.instance
-        .collection('experience_signups')
-        .add({
-          'experienceId': widget.experienceId,
-          'experienceName': widget.experienceName,
-          'userId': user.uid,
-          'userEmail': user.email,
-          'signedAt': Timestamp.now(),
-        });
-  }
-
-  Future<void> cancelSignUp(String docId) async {
-    await FirebaseFirestore.instance
-        .collection('experience_signups')
-        .doc(docId)
-        .delete();
-  }
-
 
   Future<void> fetchICubeContents() async {
     setState(() {
       icubeLoading = true;
       icubeError = null;
     });
-    try {
-      final res = await http
-          .get(Uri.parse('$icubeBase/contents'))
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final list = json.decode(res.body) as List<dynamic>;
-        setState(() {
-          icubeContents = list;
-          icubeLoading = false;
-        });
-      } else {
-        setState(() {
-          icubeError = 'Failed to load iCube contents: ${res.statusCode}';
-          icubeLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        icubeError = 'iCube: $e';
-        icubeLoading = false;
-      });
-    }
+
+    final result = await DeviceLoadingService.fetchICubeContents();
+
+    setState(() {
+      icubeContents = result.contents;
+      icubeLoading = result.isLoading;
+      icubeError = result.error;
+    });
   }
 
   Future<void> fetchIRigContents() async {
@@ -136,28 +87,14 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       irigLoading = true;
       irigError = null;
     });
-    try {
-      final res = await http
-          .get(Uri.parse('$irigBase/contents'))
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final list = json.decode(res.body) as List<dynamic>;
-        setState(() {
-          irigContents = list;
-          irigLoading = false;
-        });
-      } else {
-        setState(() {
-          irigError = 'Failed to load iRig contents: ${res.statusCode}';
-          irigLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        irigError = 'iRig: $e';
-        irigLoading = false;
-      });
-    }
+
+    final result = await DeviceLoadingService.fetchIRigContents();
+
+    setState(() {
+      irigContents = result.contents;
+      irigLoading = result.isLoading;
+      irigError = result.error;
+    });
   }
 
   Future<void> fetchICreateContents() async {
@@ -165,28 +102,14 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       icreateLoading = true;
       icreateError = null;
     });
-    try {
-      final res = await http
-          .get(Uri.parse('$icreateBase/contents'))
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final list = json.decode(res.body) as List<dynamic>;
-        setState(() {
-          icreateContents = list;
-          icreateLoading = false;
-        });
-      } else {
-        setState(() {
-          icreateError = 'Failed to load iCreate contents: ${res.statusCode}';
-          icreateLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        icreateError = 'iCreate: $e';
-        icreateLoading = false;
-      });
-    }
+
+    final result = await DeviceLoadingService.fetchICreateContents();
+
+    setState(() {
+      icreateContents = result.contents;
+      icreateLoading = result.isLoading;
+      icreateError = result.error;
+    });
   }
 
   Future<void> fetchStorytimeContents() async {
@@ -194,29 +117,14 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       storytimeLoading = true;
       storytimeError = null;
     });
-    try {
-      final res = await http
-          .get(Uri.parse('$storytimeBase/contents'))
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final list = json.decode(res.body) as List<dynamic>;
-        setState(() {
-          storytimeContents = list;
-          storytimeLoading = false;
-        });
-      } else {
-        setState(() {
-          storytimeError =
-              'Failed to load Storytime contents: ${res.statusCode}';
-          storytimeLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        storytimeError = 'Storytime: $e';
-        storytimeLoading = false;
-      });
-    }
+
+    final result = await DeviceLoadingService.fetchStorytimeContents();
+
+    setState(() {
+      storytimeContents = result.contents;
+      storytimeLoading = result.isLoading;
+      storytimeError = result.error;
+    });
   }
 
   Future<void> fetchExperienceBooths() async {
@@ -237,16 +145,11 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         });
         return;
       }
-      final data = (doc.data() as Map<String, dynamic>?) ?? {};
-      final raw = (data['booths'] as List?) ?? [];
-      final parsed = <Map<String, dynamic>>[];
-      for (var item in raw) {
-        if (item is Map) {
-          parsed.add(Map<String, dynamic>.from(item as Map));
-        }
-      }
+
+      final experience = Experience.fromDoc(doc);
+
       setState(() {
-        booths = parsed;
+        booths = experience.booths;
         boothsLoading = false;
       });
     } catch (e) {
@@ -257,120 +160,102 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     }
   }
 
-  Future<void> launchContent(String device, String contentName) async {
-    final base = device == 'iCube'
-        ? icubeBase
-        : device == 'iRig'
-        ? irigBase
-        : device == 'iCreate'
-        ? icreateBase
-        : device == 'Storytime'
-        ? storytimeBase
-        : '';
-    try {
-      // If content is already running on the same device, stop it first
-      final currentRunningContent = runningContent[device];
-      if (currentRunningContent != null && currentRunningContent.isNotEmpty) {
-        await stopContent(device, currentRunningContent);
-      }
+  Future<void> launchContent(
+    String device,
+    String contentName, {
+    String? boothName,
+    String? logoUrl,
+    String? experienceId,
+    String? experienceName,
+  }) async {
+    // If content is already running on the same device, stop it first
+    final currentRunningContent = runningContent[device];
+    if (currentRunningContent != null && currentRunningContent.isNotEmpty) {
+      await stopContent(device, currentRunningContent);
+    }
 
-      final res = await http
-          .get(Uri.parse('$base/launch/$contentName'))
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        setState(() {
-          runningContent[device] = contentName;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Launching ${data['content']}: ${data['status']}'),
-          ),
-        );
+    final result = await DeviceLoadingService.launchContent(
+      device,
+      contentName,
+    );
 
-        // Navigate to Storytime web app after launching Storytime content
-        if (device == 'Storytime') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const StoryTimeWebappPage(),
-            ),
+    if (result.success) {
+      setState(() {
+        runningContent[device] = contentName;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+
+      // Record recently played for the signed-in user
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null && uid.isNotEmpty) {
+          final docId = await RecentlyPlayedService.addRecentlyPlayed(
+            userId: uid,
+            device: device,
+            boothName: boothName ?? contentName,
+            experienceId: experienceId ?? widget.experienceId,
+            experienceName: experienceName ?? widget.experienceName,
+            logoUrl: logoUrl,
           );
+          // store start time and doc id to update playtime when stopped
+          runningStart[device] = DateTime.now();
+          runningRecentDocId[device] = docId;
         }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to launch content'),
-            backgroundColor: Colors.red,
-          ),
+      } catch (e) {
+        // ignore: avoid_print
+        print('Failed to write RecentlyPlayed: $e');
+      }
+
+      // Navigate to Storytime web app after launching Storytime content
+      if (device == 'Storytime') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const StoryTimeWebappPage()),
         );
       }
-    } catch (e) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(result.message), backgroundColor: Colors.red),
       );
     }
   }
 
   Future<void> stopContent(String device, String contentName) async {
-    final base = device == 'iCube'
-        ? icubeBase
-        : device == 'iRig'
-        ? irigBase
-        : device == 'iCreate'
-        ? icreateBase
-        : device == 'Storytime'
-        ? storytimeBase
-        : '';
-    try {
-      final res = await http
-          .get(Uri.parse('$base/close/$contentName'))
-          .timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        // Check for success status or assume success if status is 200
-        final isSuccess =
-            data['status'] == 'success' ||
-            data['status'] == null ||
-            (data['message'] == null && data['status'] != 'error');
+    final result = await DeviceLoadingService.stopContent(device, contentName);
 
-        if (isSuccess) {
-          setState(() {
-            runningContent[device] = null;
-          });
-
-          // Try to get the executable name from various possible fields
-          final exeName = data['closed_exe'] ?? data['content'] ?? contentName;
-
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Stopped $exeName')));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${data['message'] ?? 'Unknown error'}'),
-              backgroundColor: Colors.red,
-            ),
+    if (result.success) {
+      // compute play duration and persist it if we have a start time and doc id
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        final start = runningStart[device];
+        final docId = runningRecentDocId[device];
+        if (uid != null && uid.isNotEmpty && start != null && docId != null) {
+          final seconds = DateTime.now().difference(start).inSeconds;
+          await RecentlyPlayedService.updatePlaytimeByDocId(
+            userId: uid,
+            docId: docId,
+            seconds: seconds,
           );
         }
-      } else if (res.statusCode == 404) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Build executable not found'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to stop content'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('Failed updating playtime: $e');
       }
-    } catch (e) {
+
+      setState(() {
+        runningContent[device] = null;
+        runningStart.remove(device);
+        runningRecentDocId.remove(device);
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(result.message), backgroundColor: Colors.red),
       );
     }
   }
@@ -406,15 +291,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         : device == 'Storytime'
         ? storytimeContents
         : [];
-    final baseUrl = device == 'iCube'
-        ? icubeBase
-        : device == 'iRig'
-        ? irigBase
-        : device == 'iCreate'
-        ? icreateBase
-        : device == 'Storytime'
-        ? storytimeBase
-        : '';
+    final baseUrl = DeviceLoadingService.getBaseUrl(device);
 
     dynamic matched;
     if (contentName != null) {
@@ -536,8 +413,16 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: ElevatedButton.icon(
-                        onPressed: () =>
-                            launchContent(device, contentNameFound),
+                        onPressed: () => launchContent(
+                          device,
+                          contentNameFound,
+                          boothName: contentNameFound,
+                          logoUrl: content['icon_url'] != null
+                              ? '$baseUrl${content['icon_url']}'
+                              : null,
+                          experienceId: widget.experienceId,
+                          experienceName: widget.experienceName,
+                        ),
                         icon: const Icon(Icons.play_arrow, size: 18),
                         label: const Text('Play'),
                         style: ElevatedButton.styleFrom(
@@ -600,7 +485,13 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                   // open device page for full content selection
                   // fallback: attempt to launch by name if provided
                   if (contentName != null) {
-                    launchContent(device, contentName);
+                    launchContent(
+                      device,
+                      contentName,
+                      boothName: contentName,
+                      experienceId: widget.experienceId,
+                      experienceName: widget.experienceName,
+                    );
                   } else {
                     // navigate to device full page
                     if (device == 'iCube') {
@@ -638,13 +529,13 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     bool loading,
     String? error,
     String baseUrl,
-  ) 
-  {
+  ) {
     final filtered = _filter(list);
     if (loading) return const Center(child: CircularProgressIndicator());
     if (error != null) return Center(child: Text(error));
-    if (filtered.isEmpty)
+    if (filtered.isEmpty) {
       return const Center(child: Text('No contents available'));
+    }
 
     return GridView.builder(
       shrinkWrap: true,
@@ -764,7 +655,16 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: ElevatedButton.icon(
-                          onPressed: () => launchContent(device, contentName),
+                          onPressed: () => launchContent(
+                            device,
+                            contentName,
+                            boothName: contentName,
+                            logoUrl: content['icon_url'] != null
+                                ? '$baseUrl${content['icon_url']}'
+                                : null,
+                            experienceId: widget.experienceId,
+                            experienceName: widget.experienceName,
+                          ),
                           icon: const Icon(Icons.play_arrow, size: 18),
                           label: const Text('Play'),
                           style: ElevatedButton.styleFrom(
@@ -798,7 +698,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         );
 
         if (hasRunningContent) {
-          await showDialog(
+          final shouldStop = await showDialog<bool>(
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
@@ -809,81 +709,48 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                 actions: [
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      Navigator.of(context).pop(false);
                     },
-                    child: const Text('OK'),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                    },
+                    child: const Text(
+                      'Stop all content',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   ),
                 ],
               );
             },
           );
-          return false; //to prevent users from exiting experience when there is content running
+
+          if (shouldStop == true) {
+            // Stop all running contents, then allow pop
+            final running = runningContent.entries
+                .where((e) => e.value != null && e.value!.isNotEmpty)
+                .toList();
+            for (var entry in running) {
+              await stopContent(entry.key, entry.value!);
+            }
+            return true;
+          }
+
+          return false; // prevent exit if cancelled
         }
         return true;
       },
       child: Scaffold(
         appBar: AppBar(title: Text('Explore: ${widget.experienceName}')),
-        bottomNavigationBar: SafeArea(
-  child: Padding(
-    padding: const EdgeInsets.all(16),
-    child: StreamBuilder<QuerySnapshot>(
-      stream: signupStream(),
-      builder: (context, snapshot) {
-        final isSignedUp =
-            snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-
-        final signupDocId =
-            isSignedUp ? snapshot.data!.docs.first.id : null;
-
-        return SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: () async {
-              if (isSignedUp) {
-                await cancelSignUp(signupDocId!);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Signup cancelled'),
-                  ),
-                );
-              } else {
-                await signUp();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Successfully signed up'),
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isSignedUp ? Colors.red : const Color.fromRGBO(143, 148, 251, 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              isSignedUp ? 'Cancel Sign Up' : 'Sign Up for Experience',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        );
-      },
-    ),
-  ),
-),
-
         body: RefreshIndicator(
           onRefresh: () async {
             await Future.wait([
               fetchExperienceBooths(),
               fetchICubeContents(),
               fetchIRigContents(),
+              fetchICreateContents(),
               fetchStorytimeContents(),
             ]);
           },
@@ -950,8 +817,9 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                               return contentName.contains(query);
                             }).toList();
 
-                      if (filteredBooths.isEmpty)
+                      if (filteredBooths.isEmpty) {
                         return const Center(child: Text('No iCube booths'));
+                      }
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -1009,8 +877,9 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                               return contentName.contains(query);
                             }).toList();
 
-                      if (filteredBooths.isEmpty)
+                      if (filteredBooths.isEmpty) {
                         return const Center(child: Text('No iCreate booths'));
+                      }
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -1067,8 +936,9 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                               return contentName.contains(query);
                             }).toList();
 
-                      if (filteredBooths.isEmpty)
+                      if (filteredBooths.isEmpty) {
                         return const Center(child: Text('No iRig booths'));
+                      }
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -1126,8 +996,9 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                               return contentName.contains(query);
                             }).toList();
 
-                      if (filteredBooths.isEmpty)
+                      if (filteredBooths.isEmpty) {
                         return const Center(child: Text('No Storytime booths'));
+                      }
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),

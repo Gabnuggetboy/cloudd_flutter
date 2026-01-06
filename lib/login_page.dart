@@ -6,8 +6,8 @@ import 'manager/manager_account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
-import 'irig_test2.dart';
 import 'icube_test.dart';
+import 'package:cloudd_flutter/models/user.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -71,10 +71,10 @@ class _LoginPageState extends State<LoginPage> {
           .doc(user.uid)
           .get();
 
-      String role = snap["role"] ?? "User";
+      final appUser = AppUser.fromDoc(snap);
 
       // Redirect based on role
-      if (role == "Manager") {
+      if (appUser.isManager) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const ManagerAccountPage()),

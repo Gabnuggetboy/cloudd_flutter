@@ -96,7 +96,7 @@ class _DDHubPageState extends State<DDHubPage> {
             ),
             const SizedBox(height: 10),
 
-            // 🔍 Search
+            // Search
             _buildSearchBar(),
 
             // MultiDD

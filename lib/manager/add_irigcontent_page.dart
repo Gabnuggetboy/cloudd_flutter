@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloudd_flutter/services/device_loading_service.dart';
+import 'package:cloudd_flutter/models/manager_content_selection.dart';
 
 class IrigTestPage extends StatefulWidget {
   final bool selectionMode;
@@ -22,7 +24,6 @@ class IrigTestPage extends StatefulWidget {
 }
 
 class _IrigTestPageState extends State<IrigTestPage> {
-  final String apiBaseUrl = 'http://192.168.0.126:5000';
   List<dynamic> contents = [];
   bool isLoading = true;
   String? errorMessage;
@@ -34,7 +35,7 @@ class _IrigTestPageState extends State<IrigTestPage> {
   @override
   void initState() {
     super.initState();
-    
+
     // To show previously selected contents
     if (widget.selectionMode) {
       if (widget.initialSelectedContents != null &&
@@ -52,13 +53,16 @@ class _IrigTestPageState extends State<IrigTestPage> {
 
     try {
       final doc = await FirebaseFirestore.instance
-          .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_irig_${widget.experienceId}")
+          .collection('Experiences')
+          .doc(widget.experienceId)
+          .collection('ManagerContentSelections')
+          .doc('irig_${widget.managerId}')
           .get();
 
-      if (doc.exists && doc.data()?['selectedContents'] != null) {
+      if (doc.exists) {
+        final selection = ManagerContentSelection.fromDoc(doc);
         setState(() {
-          selectedContents = Set<String>.from(doc.data()!['selectedContents']);
+          selectedContents = Set<String>.from(selection.selectedContents);
         });
       }
     } catch (_) {
@@ -71,16 +75,26 @@ class _IrigTestPageState extends State<IrigTestPage> {
     if (widget.managerId == null || widget.experienceId == null) return;
 
     try {
+      // Ensure parent experience document exists so subcollection is visible in console
       await FirebaseFirestore.instance
-          .collection("ManagerContentSelections")
-          .doc("${widget.managerId}_irig_${widget.experienceId}")
-          .set({
-            "managerId": widget.managerId,
-            "device": "iRig",
-            "experienceId": widget.experienceId,
-            "selectedContents": selectedContents.toList(),
-            "lastUpdated": Timestamp.now(),
-          });
+          .collection('Experiences')
+          .doc(widget.experienceId)
+          .set({}, SetOptions(merge: true));
+
+      final selection = ManagerContentSelection(
+        id: 'irig_${widget.managerId}',
+        managerId: widget.managerId!,
+        device: 'iRig',
+        experienceId: widget.experienceId!,
+        selectedContents: selectedContents.toList(),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('Experiences')
+          .doc(widget.experienceId)
+          .collection('ManagerContentSelections')
+          .doc(selection.id)
+          .set(selection.toMap());
     } catch (_) {
       // ignore
     }
@@ -93,18 +107,16 @@ class _IrigTestPageState extends State<IrigTestPage> {
     });
 
     try {
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/contents'))
-          .timeout(requestTimeout);
+      final result = await DeviceLoadingService.fetchIRigContents();
 
-      if (response.statusCode == 200) {
+      if (result.error != null) {
         setState(() {
-          contents = json.decode(response.body);
+          errorMessage = result.error;
           isLoading = false;
         });
       } else {
         setState(() {
-          errorMessage = 'Failed to load contents: ${response.statusCode}';
+          contents = result.contents;
           isLoading = false;
         });
       }
@@ -118,25 +130,25 @@ class _IrigTestPageState extends State<IrigTestPage> {
 
   Future<void> launchContent(String contentName) async {
     try {
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/launch/$contentName'))
-          .timeout(requestTimeout);
+      final result = await DeviceLoadingService.launchContent(
+        'iRig',
+        contentName,
+      );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (result.success) {
         setState(() {
           runningContent = contentName;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Launching ${data['content']}: ${data['status']}'),
-            duration: Duration(seconds: 2),
+            content: Text('Launching $contentName: ${result.message}'),
+            duration: const Duration(seconds: 2),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to launch content'),
+            content: Text('Failed to launch content: ${result.message}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -150,48 +162,35 @@ class _IrigTestPageState extends State<IrigTestPage> {
 
   Future<void> stopContent(String contentName) async {
     try {
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/close/$contentName'))
-          .timeout(requestTimeout);
+      final result = await DeviceLoadingService.stopContent(
+        'iRig',
+        contentName,
+      );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'success') {
-          setState(() {
-            runningContent = null;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Stopped ${data['closed_exe']}'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${data['message']}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else if (response.statusCode == 404) {
+      if (result.success) {
+        setState(() {
+          runningContent = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Build executable not found'),
-            backgroundColor: Colors.red,
+            content: Text('Stopped $contentName'),
+            duration: const Duration(seconds: 2),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to stop content'),
+            content: Text('Error: ${result.message}'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Failed to stop content: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -309,7 +308,10 @@ class _IrigTestPageState extends State<IrigTestPage> {
                                   child: Stack(
                                     children: [
                                       Image.network(
-                                        '$apiBaseUrl${content['icon_url']}',
+                                        DeviceLoadingService.getContentIconUrl(
+                                          'iRig',
+                                          content['icon_url'] ?? '',
+                                        ),
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) {

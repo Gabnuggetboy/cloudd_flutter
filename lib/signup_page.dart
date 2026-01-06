@@ -3,6 +3,7 @@ import 'package:animate_do/animate_do.dart';
 import 'login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloudd_flutter/models/user.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -39,11 +40,17 @@ class _SignUpPageState extends State<SignUpPage> {
       // Send verification email
       await userCredential.user!.sendEmailVerification();
 
-      // Save user in Firestore
+      // Save user in Firestore using the AppUser model
+      final newUser = AppUser(
+        uid: userCredential.user!.uid,
+        email: email,
+        role: 'User',
+      );
+
       await FirebaseFirestore.instance
           .collection("users")
           .doc(userCredential.user!.uid)
-          .set({"email": email, "created_at": DateTime.now(), "role": "User"});
+          .set(newUser.toMap());
 
       showMessage("Account created! Please verify your email.");
     } on FirebaseAuthException catch (e) {
