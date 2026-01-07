@@ -34,9 +34,7 @@ class _LoginPageState extends State<LoginPage> {
   bool get _isFormFilled =>
       _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
 
-  // ---------------------------------------
   // LOGIN FUNCTION
-  // ---------------------------------------
   Future<void> loginUser() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
