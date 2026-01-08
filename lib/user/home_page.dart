@@ -661,7 +661,7 @@ class _HomePageState extends State<HomePage> {
                             color: const Color(0xFFD8CFCF),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: ClipRRect(
+                          child: ClipRRect(                          
                             borderRadius: BorderRadius.circular(12),
                             child: Image.asset(
                               'assets/images/recently_played_${index + 1}.png',
@@ -677,116 +677,6 @@ class _HomePageState extends State<HomePage> {
                               },
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-                  // Explore header (shows experiences across all managers)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        "TESTING EXPERIENCES ONLY",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Explore list from Firestore (all experiences)
-                  SizedBox(
-                    height: 160,
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('Experiences')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Text('Error: ${snapshot.error}'),
-                          );
-                        }
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-
-                        final docs = snapshot.data!.docs;
-                        if (docs.isEmpty) {
-                          return const Center(
-                            child: Text('No experiences yet'),
-                          );
-                        }
-
-                        return ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: docs.length,
-                          padding: EdgeInsets.zero,
-                          itemBuilder: (context, index) {
-                            final doc = docs[index];
-                            final data =
-                                (doc.data() as Map<String, dynamic>?) ?? {};
-                            final name =
-                                (data['name'] as String?) ?? 'Untitled';
-                            final booths = (data['booths'] as List?) ?? [];
-
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ExploreExperiencePage(
-                                      experienceId: doc.id,
-                                      experienceName: name,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: MediaQuery.of(context).size.width * 0.6,
-                                margin: EdgeInsets.only(right: 12),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Center(
-                                        child: Text(
-                                          name,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      '${booths.length} booth${booths.length == 1 ? '' : 's'}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium?.color,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
                         );
                       },
                     ),
