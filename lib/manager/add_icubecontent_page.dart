@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/models/manager_content_selection.dart';
@@ -28,7 +26,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   List<dynamic> contents = [];
   bool isLoading = true;
   String? errorMessage;
-  String? runningContent;
   Set<String> selectedContents = {};
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
@@ -53,7 +50,6 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   ];
 
   Map<String, List<dynamic>> groupAndSortContents() {
-    // Filter contents based on search query (name or tag)
     final query = searchQuery.trim().toLowerCase();
     final items = query.isEmpty
         ? contents
@@ -67,9 +63,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
 
     for (var content in items) {
       final tag = content['tag'] ?? 'Other';
-      if (!grouped.containsKey(tag)) {
-        grouped[tag] = [];
-      }
+      grouped.putIfAbsent(tag, () => []);
       grouped[tag]!.add(content);
     }
 
@@ -79,7 +73,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         sortedGroups[tag] = grouped[tag]!;
       }
     }
-
+    // Add remaining tags (unsorted)
     for (var tag in grouped.keys) {
       if (!tagOrder.contains(tag)) {
         sortedGroups[tag] = grouped[tag]!;
@@ -92,18 +86,15 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   @override
   void initState() {
     super.initState();
-    if (!widget.selectionMode) {
-      _loadRunningFromPrefs();
+
+    // Pre-load selected contents
+    if (widget.initialSelectedContents != null &&
+        widget.initialSelectedContents!.isNotEmpty) {
+      selectedContents = Set<String>.from(widget.initialSelectedContents!);
+    } else if (widget.managerId != null && widget.experienceId != null) {
+      _loadSelectedContents();
     }
-    // To show previously selected contents
-    if (widget.selectionMode) {
-      if (widget.initialSelectedContents != null &&
-          widget.initialSelectedContents!.isNotEmpty) {
-        selectedContents = Set<String>.from(widget.initialSelectedContents!);
-      } else if (widget.managerId != null && widget.experienceId != null) {
-        _loadSelectedContents();
-      }
-    }
+
     fetchContents();
   }
 
@@ -125,16 +116,14 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         });
       }
     } catch (_) {
-      // ignore
+      // Silent ignore
     }
   }
 
   Future<void> _saveSelectedContents() async {
-    // Don't persist selections for a temporary/new experience (no id).
     if (widget.managerId == null || widget.experienceId == null) return;
 
     try {
-      // Ensure parent experience document exists so subcollection is visible in console
       await FirebaseFirestore.instance
           .collection('Experiences')
           .doc(widget.experienceId)
@@ -155,40 +144,8 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
           .doc(selection.id)
           .set(selection.toMap());
     } catch (_) {
-      // ignore
+      // Silent ignore
     }
-  }
-
-  Future<void> _loadRunningFromPrefs() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('running_content');
-      if (saved != null && saved.isNotEmpty) {
-        setState(() {
-          runningContent = saved;
-        });
-      }
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  Future<void> clearRunningState() async {
-    setState(() {
-      runningContent = null;
-    });
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('running_content');
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
   }
 
   Future<void> fetchContents() async {
@@ -205,44 +162,41 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
           errorMessage = result.error;
           isLoading = false;
         });
-      } else {
-        final contentsList = result.contents as List<dynamic>;
+        return;
+      }
 
-        // Fetch tags for each content
-        for (var content in contentsList) {
-          if (content['has_tag'] == true && content['tag_url'] != null) {
-            try {
-              final tagResponse = await http
-                  .get(
-                    Uri.parse(
-                      DeviceLoadingService.getContentTagUrl(
-                        'iCube',
-                        content['tag_url'],
-                      ),
-                    ),
-                  )
-                  .timeout(requestTimeout);
+      final contentsList = result.contents;
 
-              if (tagResponse.statusCode == 200) {
-                // The response is plain text, not JSON
-                final tagText = tagResponse.body.trim();
-                content['tag'] = tagText.isNotEmpty ? tagText : 'Other';
-              } else {
-                content['tag'] = 'Other';
-              }
-            } catch (e) {
+      // Fetch tags
+      for (var content in contentsList) {
+        if (content['has_tag'] == true && content['tag_url'] != null) {
+          try {
+            final tagResponse = await http
+                .get(
+                  Uri.parse(
+                    '${DeviceLoadingService.getBaseUrl('iCube')}${content['tag_url']}',
+                  ),
+                )
+                .timeout(requestTimeout);
+
+            if (tagResponse.statusCode == 200) {
+              final tagText = tagResponse.body.trim();
+              content['tag'] = tagText.isNotEmpty ? tagText : 'Other';
+            } else {
               content['tag'] = 'Other';
             }
-          } else {
+          } catch (e) {
             content['tag'] = 'Other';
           }
+        } else {
+          content['tag'] = 'Other';
         }
-
-        setState(() {
-          contents = contentsList;
-          isLoading = false;
-        });
       }
+
+      setState(() {
+        contents = contentsList;
+        isLoading = false;
+      });
     } catch (e) {
       setState(() {
         errorMessage = 'Please connect to Digital_Dream_2_5G wifi.';
@@ -251,273 +205,10 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
     }
   }
 
-  Future<void> launchContent(String contentName) async {
-    try {
-      if (runningContent != null && runningContent != contentName) {
-        final stopping = await stopContent(runningContent!);
-        if (!stopping) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to stop previous content'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      }
-
-      final result = await DeviceLoadingService.launchContent(
-        'iCube',
-        contentName,
-      );
-
-      if (result.success) {
-        setState(() {
-          runningContent = contentName;
-        });
-        // persist running content
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('running_content', contentName);
-        } catch (_) {}
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Launching $contentName: ${result.message}'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to launch content: ${result.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  Future<bool> stopContent(String contentName) async {
-    try {
-      final result = await DeviceLoadingService.stopContent(
-        'iCube',
-        contentName,
-      );
-
-      if (result.success) {
-        setState(() {
-          runningContent = null;
-        });
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('running_content');
-        } catch (_) {}
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Stopped $contentName'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        return true;
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${result.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return false;
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to stop content: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.selectionMode ? 'Add iCube Content' : 'iCube Test'),
-        backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
-        foregroundColor: Colors.white,
-        actions: widget.selectionMode
-            ? [
-                TextButton(
-                  onPressed: () async {
-                    await _saveSelectedContents();
-                    Navigator.pop(context, selectedContents.toList());
-                  },
-                  child: Text(
-                    'Done',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ]
-            : null,
-      ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.deferToChild,
-        onTap: () {},
-        child: Stack(
-          children: [
-            isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : errorMessage != null
-                ? Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: Colors.red,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            errorMessage!,
-                            style: TextStyle(color: Colors.red, fontSize: 14),
-                            textAlign: TextAlign.left,
-                          ),
-                          SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: fetchContents,
-                            icon: Icon(Icons.refresh),
-                            label: Text('Retry Connection'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color.fromRGBO(143, 148, 251, 1),
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : contents.isEmpty
-                ? const Center(child: Text('No contents available'))
-                : Column(
-                    children: [
-                      // Search bar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 12.0,
-                        ),
-                        child: TextField(
-                          controller: searchController,
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.search),
-                            hintText: 'Search contents',
-                            suffixIcon: searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      searchController.clear();
-                                      setState(() => searchQuery = '');
-                                    },
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12.0,
-                              vertical: 12.0,
-                            ),
-                          ),
-                          onChanged: (value) {
-                            setState(() => searchQuery = value);
-                          },
-                        ),
-                      ),
-                      // Content list
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: fetchContents,
-                          child: ListView(
-                            padding: const EdgeInsets.all(16),
-                            children: _buildContentSections(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-            if (!widget.selectionMode && runningContent != null)
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: Card(
-                  elevation: 8,
-                  color: Color.fromRGBO(143, 148, 251, 1),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.play_circle_filled, color: Colors.white),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            '$runningContent is running',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () => stopContent(runningContent!),
-                          icon: Icon(Icons.stop, size: 18),
-                          label: Text('Stop'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        IconButton(
-                          onPressed: clearRunningState,
-                          icon: Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          tooltip: 'Clear status',
-                          padding: EdgeInsets.zero,
-                          constraints: BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   List<Widget> _buildContentSections() {
@@ -525,10 +216,9 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
     final sections = <Widget>[];
 
     for (var tag in groupedContents.keys) {
-      // Add tag heading
       sections.add(
         Padding(
-          padding: const EdgeInsets.only(top: 16.0, bottom: 12.0),
+          padding: const EdgeInsets.only(top: 24.0, bottom: 12.0),
           child: Text(
             tag,
             style: const TextStyle(
@@ -541,11 +231,10 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
         ),
       );
 
-      // content grid for tag
       sections.add(
         GridView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
@@ -556,188 +245,198 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
           itemCount: groupedContents[tag]!.length,
           itemBuilder: (context, index) {
             final content = groupedContents[tag]![index];
-            final isSelected = widget.selectionMode
-                ? selectedContents.contains(content['name'])
-                : false;
-            final isRunning = runningContent == content['name'];
+            final contentName = content['name'];
+            final isSelected = selectedContents.contains(contentName);
 
-            return _buildContentCard(content, isSelected, isRunning);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    selectedContents.remove(contentName);
+                  } else {
+                    selectedContents.add(contentName);
+                  }
+                });
+              },
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              DeviceLoadingService.getContentIconUrl(
+                                'iCube',
+                                content['icon_url'] ?? '',
+                              ),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(
+                                    Icons.image_not_supported,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              },
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              },
+                            ),
+                            if (isSelected)
+                              Container(
+                                color: Colors.black.withOpacity(0.5),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 48,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text(
+                        contentName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
           },
         ),
       );
 
-      // sized box for space in between tag header sections
-      sections.add(SizedBox(height: 80.0));
+      sections.add(const SizedBox(height: 60.0));
     }
 
     return sections;
   }
 
-  Widget _buildContentCard(dynamic content, bool isSelected, bool isRunning) {
-    final contentName = content['name'];
-
-    return GestureDetector(
-      onTap: () {
-        if (widget.selectionMode) {
-          // In selection mode, toggle selection
-          setState(() {
-            if (selectedContents.contains(contentName)) {
-              selectedContents.remove(contentName);
-            } else {
-              // Allow multiple selections: just add
-              selectedContents.add(contentName);
-            }
-          });
-        } else {
-          // Original play/stop functionality
-          setState(() {
-            if (isSelected) {
-              if (!isRunning) {
-                launchContent(contentName);
-              }
-            }
-          });
-        }
-      },
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
-                ),
-                child: Stack(
-                  children: [
-                    Image.network(
-                      DeviceLoadingService.getContentIconUrl(
-                        'iCube',
-                        content['icon_url'] ?? '',
-                      ),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                : null,
-                          ),
-                        );
-                      },
-                    ),
-                    // Show selection overlay in selection mode
-                    if (widget.selectionMode && isSelected)
-                      Container(
-                        color: Colors.black.withOpacity(0.5),
-                        child: Center(
-                          child: Icon(
-                            Icons.check_circle,
-                            color: Colors.white,
-                            size: 48,
-                          ),
-                        ),
-                      ),
-                    // Show play button if selected or running (non-selection mode)
-                    if (!widget.selectionMode && (isSelected || isRunning))
-                      Container(
-                        color: Colors.black.withOpacity(0.5),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (!isRunning)
-                                GestureDetector(
-                                  onTap: () => launchContent(contentName),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white.withOpacity(0.9),
-                                    ),
-                                    padding: const EdgeInsets.all(12),
-                                    child: const Icon(
-                                      Icons.play_arrow,
-                                      color: Color.fromRGBO(143, 148, 251, 1),
-                                      size: 36,
-                                    ),
-                                  ),
-                                )
-                              else
-                                Column(
-                                  children: [
-                                    Icon(
-                                      Icons.play_circle_fill,
-                                      color: Colors.white,
-                                      size: 48,
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Running',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    contentName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.selectionMode ? 'Add iCube Content' : 'iCube Contents'),
+        backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
+        foregroundColor: Colors.white,
+        actions: widget.selectionMode
+            ? [
+                TextButton(
+                  onPressed: () async {
+                    await _saveSelectedContents();
+                    if (mounted) {
+                      Navigator.pop(context, selectedContents.toList());
+                    }
+                  },
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
-                  if (isRunning)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: ElevatedButton.icon(
-                        onPressed: () => stopContent(contentName),
-                        icon: Icon(Icons.stop_circle, size: 18),
-                        label: Text('Stop'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 6),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
+                ),
+              ]
+            : null,
       ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+              ? Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          errorMessage!,
+                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: fetchContents,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry Connection'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : contents.isEmpty
+                  ? const Center(child: Text('No contents available'))
+                  : Column(
+                      children: [
+                        // Search bar
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          child: TextField(
+                            controller: searchController,
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.search),
+                              hintText: 'Search contents',
+                              suffixIcon: searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        searchController.clear();
+                                        setState(() => searchQuery = '');
+                                      },
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+                            ),
+                            onChanged: (value) {
+                              setState(() => searchQuery = value);
+                            },
+                          ),
+                        ),
+                        // Content sections
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: fetchContents,
+                            child: ListView(
+                              padding: const EdgeInsets.all(16),
+                              children: _buildContentSections(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
     );
   }
 }

@@ -9,6 +9,7 @@ class Experience {
   final String? logoUrl;
   final bool enabled;
   final String? creatorId;
+  final String? managerId;
   final Timestamp? createdAt;
   final Timestamp? lastUpdated;
   final List<Map<String, dynamic>> booths;
@@ -25,6 +26,7 @@ class Experience {
     this.logoUrl,
     this.enabled = true,
     this.creatorId,
+    this.managerId,
     this.createdAt,
     this.lastUpdated,
     this.booths = const [],
@@ -44,6 +46,7 @@ class Experience {
       logoUrl: data['logoUrl'] as String?,
       enabled: data['enabled'] as bool? ?? true,
       creatorId: data['creatorId'] as String?,
+      managerId: data['managerId'] as String?,
       createdAt: data['createdAt'] as Timestamp?,
       lastUpdated: data['last_updated'] as Timestamp?,
       booths:
@@ -78,6 +81,7 @@ class Experience {
       'logoUrl': logoUrl,
       'enabled': enabled,
       'creatorId': creatorId,
+      'managerId': managerId,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
       'last_updated': lastUpdated ?? FieldValue.serverTimestamp(),
       'booths': booths,
@@ -85,5 +89,41 @@ class Experience {
       'collaboratorUids': collaboratorUids,
       'collaboratorEmails': collaboratorEmails,
     };
+  }
+
+  Experience copyWith({
+    String? id,
+    String? name,
+    String? category,
+    String? device,
+    String? description,
+    String? logoUrl,
+    bool? enabled,
+    String? creatorId,
+    String? managerId,
+    Timestamp? createdAt,
+    Timestamp? lastUpdated,
+    List<Map<String, dynamic>>? booths,
+    List<Map<String, dynamic>>? collaborators,
+    List<String>? collaboratorUids,
+    List<String>? collaboratorEmails,
+  }) {
+    return Experience(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      device: device ?? this.device,
+      description: description ?? this.description,
+      logoUrl: logoUrl ?? this.logoUrl,
+      enabled: enabled ?? this.enabled,
+      creatorId: creatorId ?? this.creatorId,
+      managerId: managerId ?? this.managerId,
+      createdAt: createdAt ?? this.createdAt,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      booths: booths ?? this.booths,
+      collaborators: collaborators ?? this.collaborators,
+      collaboratorUids: collaboratorUids ?? this.collaboratorUids,
+      collaboratorEmails: collaboratorEmails ?? this.collaboratorEmails,
+    );
   }
 }

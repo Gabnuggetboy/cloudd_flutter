@@ -20,7 +20,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // List<GameData> _recommendedGames = [];
-  bool _isLoading = true;
   bool _isRefreshing = false;
   // bool _showWebView = false;
 
@@ -32,7 +31,6 @@ class _HomePageState extends State<HomePage> {
 
   void _loadGames() {
     setState(() {
-      _isLoading = true;
       // _showWebView = true;
     });
   }
@@ -81,32 +79,32 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 20),
 
                   /// Search Bar
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor,
-                        width: 1.3,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.search, size: 22),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: "Search for Experience...",
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Container(
+                  //   padding: const EdgeInsets.symmetric(horizontal: 15),
+                  //   decoration: BoxDecoration(
+                  //     border: Border.all(
+                  //       color: Theme.of(context).dividerColor,
+                  //       width: 1.3,
+                  //     ),
+                  //     borderRadius: BorderRadius.circular(10),
+                  //   ),
+                  //   child: const Row(
+                  //     children: [
+                  //       Icon(Icons.search, size: 22),
+                  //       SizedBox(width: 10),
+                  //       Expanded(
+                  //         child: TextField(
+                  //           decoration: InputDecoration(
+                  //             hintText: "Search for Experience...",
+                  //             border: InputBorder.none,
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
 
-                  const SizedBox(height: 25),
+                  // const SizedBox(height: 25),
 
                   /// Categories Header
                   Row(
@@ -426,100 +424,149 @@ class _HomePageState extends State<HomePage> {
                                   }
                                 }
 
+                                final baseUrl = DeviceLoadingService.getBaseUrl(
+                                  rp.device,
+                                );
+                                final displayUrl =
+                                    (logoUrl != null && logoUrl.isNotEmpty)
+                                    ? (logoUrl.startsWith('http')
+                                          ? logoUrl
+                                          : '$baseUrl$logoUrl')
+                                    : null;
+
                                 return Container(
                                   width:
                                       MediaQuery.of(context).size.width * 0.42,
                                   margin: const EdgeInsets.only(right: 10),
-                                  // padding: const EdgeInsets.all(0),
                                   decoration: BoxDecoration(
                                     color: Theme.of(
                                       context,
                                     ).colorScheme.surface,
                                     borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
                                   ),
                                   child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      Container(
-                                        width: 160,
+                                      SizedBox(
                                         height: 100,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.rectangle,
-                                          color: const Color(0xFFEFEFEF),
-                                        ),
-                                        child: ClipRect(
-                                          child: logoUrl != null
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                top: Radius.circular(12),
+                                              ),
+                                          child: displayUrl != null
                                               ? Image.network(
-                                                  logoUrl,
+                                                  displayUrl,
                                                   fit: BoxFit.cover,
                                                   errorBuilder:
                                                       (
                                                         context,
                                                         error,
                                                         stackTrace,
-                                                      ) => const Icon(
-                                                        Icons.image,
-                                                        size: 40,
-                                                        color: Colors.grey,
+                                                      ) => Container(
+                                                        color: const Color(
+                                                          0xFFEFEFEF,
+                                                        ),
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons.image,
+                                                            size: 40,
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
                                                       ),
+                                                  loadingBuilder:
+                                                      (context, child, prog) {
+                                                        if (prog == null) {
+                                                          return child;
+                                                        }
+                                                        return const Center(
+                                                          child:
+                                                              CircularProgressIndicator(),
+                                                        );
+                                                      },
                                                 )
-                                              : const Center(
-                                                  child: Icon(
-                                                    Icons.videogame_asset,
-                                                    size: 40,
-                                                    color: Colors.grey,
+                                              : Container(
+                                                  color: const Color(
+                                                    0xFFEFEFEF,
+                                                  ),
+                                                  child: const Center(
+                                                    child: Icon(
+                                                      Icons.videogame_asset,
+                                                      size: 44,
+                                                      color: Colors.grey,
+                                                    ),
                                                   ),
                                                 ),
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        rp.boothName,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        rp.device,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        rp.experienceName,
-                                        style: const TextStyle(fontSize: 12),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      // show playtime if it exists
-                                      Builder(
-                                        builder: (context) {
-                                          final int secs = rp.playtimeSeconds;
-                                          if (secs <= 0)
-                                            return const SizedBox();
-                                          final mins = rp.playtimeMinutes;
-                                          final remainder = secs % 60;
-                                          final playtimeText = mins > 0
-                                              ? '${mins}m ${remainder}s'
-                                              : '${remainder}s';
-                                          return Text(
-                                            "Playtime: $playtimeText",
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
+                                      Padding(
+                                        padding: const EdgeInsets.all(10),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              rp.boothName,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                          );
-                                        },
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              rp.device,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              rp.experienceName,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            // show playtime if it exists
+                                            Builder(
+                                              builder: (context) {
+                                                final int secs =
+                                                    rp.playtimeSeconds;
+                                                if (secs <= 0) {
+                                                  return const SizedBox();
+                                                }
+                                                final mins = rp.playtimeMinutes;
+                                                final remainder = secs % 60;
+                                                final playtimeText = mins > 0
+                                                    ? '${mins}m ${remainder}s'
+                                                    : '${remainder}s';
+                                                return Text(
+                                                  'Playtime: $playtimeText',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),

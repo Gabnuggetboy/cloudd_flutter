@@ -3,13 +3,12 @@ import 'package:http/http.dart' as http;
 
 class DeviceLoadingService {
   static const String icubeBase = 'http://192.168.0.143:5000';
-  static const String irigBase = 'http://192.168.1.81:5000';
+  static const String irigBase = 'http://192.168.0.126:5000';
   static const String icreateBase = 'http://192.168.0.129:5000';
   static const String storytimeBase = 'http://192.168.0.103:5000';
 
   static const Duration timeout = Duration(seconds: 10);
 
-  /// Fetches content from a given device API endpoint
   static Future<DeviceContentResult> _fetchDeviceContent(
     String baseUrl,
     String deviceName,
@@ -21,48 +20,32 @@ class DeviceLoadingService {
 
       if (res.statusCode == 200) {
         final list = json.decode(res.body) as List<dynamic>;
-        return DeviceContentResult(
-          contents: list,
-          isLoading: false,
-          error: null,
-        );
+        return DeviceContentResult(contents: list, error: null);
       } else {
         return DeviceContentResult(
           contents: [],
-          isLoading: false,
           error: 'Failed to load $deviceName contents: ${res.statusCode}',
         );
       }
     } catch (e) {
-      return DeviceContentResult(
-        contents: [],
-        isLoading: false,
-        error: '$deviceName: $e',
-      );
+      return DeviceContentResult(contents: [], error: '$deviceName: $e');
     }
   }
 
-  /// Fetches iCube contents
-  static Future<DeviceContentResult> fetchICubeContents() async {
-    return _fetchDeviceContent(icubeBase, 'iCube');
-  }
+  static Future<DeviceContentResult> fetchICubeContents() =>
+      _fetchDeviceContent(icubeBase, 'iCube');
 
-  /// Fetches iRig contents
-  static Future<DeviceContentResult> fetchIRigContents() async {
-    return _fetchDeviceContent(irigBase, 'iRig');
-  }
+  static Future<DeviceContentResult> fetchIRigContents() =>
+      _fetchDeviceContent(irigBase, 'iRig');
 
-  /// Fetches iCreate contents
-  static Future<DeviceContentResult> fetchICreateContents() async {
-    return _fetchDeviceContent(icreateBase, 'iCreate');
-  }
+  static Future<DeviceContentResult> fetchICreateContents() =>
+      _fetchDeviceContent(icreateBase, 'iCreate');
 
-  /// Fetches Storytime contents
-  static Future<DeviceContentResult> fetchStorytimeContents() async {
-    return _fetchDeviceContent(storytimeBase, 'Storytime');
-  }
+  static Future<DeviceContentResult> fetchStorytimeContents() =>
+      _fetchDeviceContent(storytimeBase, 'Storytime');
 
-  /// Fetches all device contents concurrently
+  // this FETCHALLDEVICECONTENTS is not used in explore_experience_page.dart
+  // because although it will reduce number of code, it sadly makes loading the page slow...
   static Future<Map<String, DeviceContentResult>>
   fetchAllDeviceContents() async {
     final results = await Future.wait([
@@ -80,7 +63,6 @@ class DeviceLoadingService {
     };
   }
 
-  /// Gets the base URL for a given device name
   static String getBaseUrl(String device) {
     switch (device) {
       case 'iCube':
@@ -96,17 +78,10 @@ class DeviceLoadingService {
     }
   }
 
-  /// url for content icon
   static String getContentIconUrl(String device, String iconPath) {
     return '${getBaseUrl(device)}$iconPath';
   }
 
-  /// url for content tag
-  static String getContentTagUrl(String device, String tagPath) {
-    return '${getBaseUrl(device)}$tagPath';
-  }
-
-  /// Launches content on a specific device
   static Future<DeviceLaunchResult> launchContent(
     String device,
     String contentName,
@@ -128,8 +103,14 @@ class DeviceLoadingService {
         final data = json.decode(res.body);
         return DeviceLaunchResult(
           success: true,
-          message: 'Launching ${data['content']}: ${data['status']}',
+          message: 'Launching ${data['content']}',
           data: data,
+        );
+      } else if (res.statusCode == 409) {
+        final data = json.decode(res.body);
+        return DeviceLaunchResult(
+          success: false,
+          message: 'Already running: ${data['content']}',
         );
       } else {
         return DeviceLaunchResult(
@@ -142,7 +123,6 @@ class DeviceLoadingService {
     }
   }
 
-  /// Stops content on a specific device
   static Future<DeviceStopResult> stopContent(
     String device,
     String contentName,
@@ -177,14 +157,9 @@ class DeviceLoadingService {
         } else {
           return DeviceStopResult(
             success: false,
-            message: 'Error: ${data['message'] ?? 'Unknown error'}',
+            message: data['message'] ?? 'Unknown error',
           );
         }
-      } else if (res.statusCode == 404) {
-        return DeviceStopResult(
-          success: false,
-          message: 'Build executable not found',
-        );
       } else {
         return DeviceStopResult(
           success: false,
@@ -195,22 +170,97 @@ class DeviceLoadingService {
       return DeviceStopResult(success: false, message: 'Error: $e');
     }
   }
+
+  static Future<DeviceStatusResult> checkDeviceStatus(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return DeviceStatusResult(
+        hasRunningContent: false,
+        runningContents: [],
+        error: 'Unknown device',
+      );
+    }
+
+    try {
+      final res = await http.get(Uri.parse('$base/status')).timeout(timeout);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return DeviceStatusResult(
+          hasRunningContent: data['any_running'] as bool? ?? false,
+          runningContents: List<String>.from(
+            data['running_contents'] as List? ?? [],
+          ),
+          error: null,
+        );
+      } else {
+        return DeviceStatusResult(
+          hasRunningContent: false,
+          runningContents: [],
+          error: 'Status check failed',
+        );
+      }
+    } catch (e) {
+      return DeviceStatusResult(
+        hasRunningContent: false,
+        runningContents: [],
+        error: 'Error: $e',
+      );
+    }
+  }
+
+  static Future<DeviceClientIPResult> checkLaunchedClientIP(
+    String device,
+  ) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return DeviceClientIPResult(
+        clientIP: null,
+        runningContent: null,
+        status: 'error',
+        error: 'Unknown device',
+      );
+    }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$base/launched_client_device_ip'))
+          .timeout(timeout);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return DeviceClientIPResult(
+          clientIP: data['client_ip'] as String?,
+          runningContent: data['running_content'] as String?,
+          status: data['status'] as String? ?? 'unknown',
+          error: null,
+        );
+      } else {
+        return DeviceClientIPResult(
+          clientIP: null,
+          runningContent: null,
+          status: 'error',
+          error: 'Failed to check client IP',
+        );
+      }
+    } catch (e) {
+      return DeviceClientIPResult(
+        clientIP: null,
+        runningContent: null,
+        status: 'error',
+        error: 'Error: $e',
+      );
+    }
+  }
 }
 
-// Result class for device content fetching
 class DeviceContentResult {
   final List<dynamic> contents;
-  final bool isLoading;
   final String? error;
 
-  DeviceContentResult({
-    required this.contents,
-    required this.isLoading,
-    required this.error,
-  });
+  DeviceContentResult({required this.contents, this.error});
 }
 
-// Result class for launching content
 class DeviceLaunchResult {
   final bool success;
   final String message;
@@ -219,11 +269,36 @@ class DeviceLaunchResult {
   DeviceLaunchResult({required this.success, required this.message, this.data});
 }
 
-// Result class for stopping content
 class DeviceStopResult {
   final bool success;
   final String message;
   final Map<String, dynamic>? data;
 
   DeviceStopResult({required this.success, required this.message, this.data});
+}
+
+class DeviceStatusResult {
+  final bool hasRunningContent;
+  final List<String> runningContents;
+  final String? error;
+
+  DeviceStatusResult({
+    required this.hasRunningContent,
+    required this.runningContents,
+    this.error,
+  });
+}
+
+class DeviceClientIPResult {
+  final String? clientIP;
+  final String? runningContent;
+  final String status;
+  final String? error;
+
+  DeviceClientIPResult({
+    required this.clientIP,
+    required this.runningContent,
+    required this.status,
+    this.error,
+  });
 }

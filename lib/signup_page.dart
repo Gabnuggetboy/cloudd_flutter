@@ -16,7 +16,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
-  @override
+
   Future<void> registerUser() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();

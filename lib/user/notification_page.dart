@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
-import 'package:cloudd_flutter/models/notification.dart';
-import 'package:cloudd_flutter/models/experience.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});

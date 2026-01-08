@@ -60,10 +60,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         .collection('Experiences')
         .doc(expId);
     final expSnap = await expRef.get();
-    final expData = expSnap.data();
-    List coll = [];
-    if (expData != null && expData['collaborators'] != null)
-      coll = List.from(expData['collaborators']);
+    final experience = Experience.fromDoc(expSnap);
+    List coll = List.from(experience.collaborators);
 
     // update collaborator status and ensure uid is present
     for (var c in coll) {
@@ -111,10 +109,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         .collection('Experiences')
         .doc(expId);
     final expSnap = await expRef.get();
-    final expData = expSnap.data();
-    List coll = [];
-    if (expData != null && expData['collaborators'] != null)
-      coll = List.from(expData['collaborators']);
+    final experience = Experience.fromDoc(expSnap);
+    List coll = List.from(experience.collaborators);
 
     coll.removeWhere(
       (c) =>

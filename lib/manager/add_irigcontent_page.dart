@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/models/manager_content_selection.dart';
 
 class IrigTestPage extends StatefulWidget {
-  final bool selectionMode;
+  final bool selectionMode; 
   final String? managerId;
   final String? experienceId;
   final List<String>? initialSelectedContents;
 
   const IrigTestPage({
     super.key,
-    this.selectionMode = false,
+    this.selectionMode = true,
     this.managerId,
     this.experienceId,
     this.initialSelectedContents,
@@ -27,24 +25,21 @@ class _IrigTestPageState extends State<IrigTestPage> {
   List<dynamic> contents = [];
   bool isLoading = true;
   String? errorMessage;
-  String? runningContent;
-  Set<String> selectedContents = {};
 
-  final Duration requestTimeout = const Duration(seconds: 10);
+  Set<String> selectedContents = {};
 
   @override
   void initState() {
     super.initState();
 
-    // To show previously selected contents
-    if (widget.selectionMode) {
-      if (widget.initialSelectedContents != null &&
-          widget.initialSelectedContents!.isNotEmpty) {
-        selectedContents = Set<String>.from(widget.initialSelectedContents!);
-      } else if (widget.managerId != null && widget.experienceId != null) {
-        _loadSelectedContents();
-      }
+    // Pre-select contents if provided
+    if (widget.initialSelectedContents != null &&
+        widget.initialSelectedContents!.isNotEmpty) {
+      selectedContents = Set<String>.from(widget.initialSelectedContents!);
+    } else if (widget.managerId != null && widget.experienceId != null) {
+      _loadSelectedContents();
     }
+
     fetchContents();
   }
 
@@ -66,16 +61,15 @@ class _IrigTestPageState extends State<IrigTestPage> {
         });
       }
     } catch (_) {
-      // ignore
+      // Silent ignore
     }
   }
 
   Future<void> _saveSelectedContents() async {
-    // Don't persist selections for a temporary/new experience (no id).
     if (widget.managerId == null || widget.experienceId == null) return;
 
     try {
-      // Ensure parent experience document exists so subcollection is visible in console
+      // Ensure parent document exists (helps visibility in Firestore console)
       await FirebaseFirestore.instance
           .collection('Experiences')
           .doc(widget.experienceId)
@@ -96,7 +90,7 @@ class _IrigTestPageState extends State<IrigTestPage> {
           .doc(selection.id)
           .set(selection.toMap());
     } catch (_) {
-      // ignore
+      // Silent ignore
     }
   }
 
@@ -128,125 +122,57 @@ class _IrigTestPageState extends State<IrigTestPage> {
     }
   }
 
-  Future<void> launchContent(String contentName) async {
-    try {
-      final result = await DeviceLoadingService.launchContent(
-        'iRig',
-        contentName,
-      );
-
-      if (result.success) {
-        setState(() {
-          runningContent = contentName;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Launching $contentName: ${result.message}'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to launch content: ${result.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  Future<void> stopContent(String contentName) async {
-    try {
-      final result = await DeviceLoadingService.stopContent(
-        'iRig',
-        contentName,
-      );
-
-      if (result.success) {
-        setState(() {
-          runningContent = null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Stopped $contentName'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${result.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to stop content: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.selectionMode ? 'Add iRig Content' : 'iRig Test'),
+        title: const Text('Add iRig Content'),
         backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
         foregroundColor: Colors.white,
-        actions: widget.selectionMode
-            ? [
-                TextButton(
-                  onPressed: () async {
-                    await _saveSelectedContents();
-                    Navigator.pop(context, selectedContents.toList());
-                  },
-                  child: Text(
-                    'Done',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ]
-            : null,
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await _saveSelectedContents();
+              if (mounted) {
+                Navigator.pop(context, selectedContents.toList());
+              }
+            },
+            child: const Text(
+              'Done',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ],
       ),
-      body: Stack(
-        children: [
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : errorMessage != null
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
               ? Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        SizedBox(height: 16),
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
                         Text(
                           errorMessage!,
-                          style: TextStyle(color: Colors.red, fontSize: 14),
-                          textAlign: TextAlign.left,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 14),
+                          textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 24),
+                        const SizedBox(height: 24),
                         ElevatedButton.icon(
                           onPressed: fetchContents,
-                          icon: Icon(Icons.refresh),
-                          label: Text('Retry Connection'),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry Connection'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color.fromRGBO(143, 148, 251, 1),
+                            backgroundColor:
+                                const Color.fromRGBO(143, 148, 251, 1),
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
                           ),
                         ),
                       ],
@@ -254,67 +180,59 @@ class _IrigTestPageState extends State<IrigTestPage> {
                   ),
                 )
               : contents.isEmpty
-              ? const Center(child: Text('No contents available'))
-              : RefreshIndicator(
-                  onRefresh: fetchContents,
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+                  ? const Center(child: Text('No contents available'))
+                  : RefreshIndicator(
+                      onRefresh: fetchContents,
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
                           childAspectRatio: 0.8,
                         ),
-                    itemCount: contents.length,
-                    itemBuilder: (context, index) {
-                      final content = contents[index];
-                      final contentName = content['name'];
-                      final isRunning = runningContent == contentName;
-                      final isSelected = widget.selectionMode
-                          ? selectedContents.contains(contentName)
-                          : false;
-                      return GestureDetector(
-                        onTap: () {
-                          if (widget.selectionMode) {
-                            // In selection mode, toggle selection (allow multiple)
-                            setState(() {
-                              if (selectedContents.contains(contentName)) {
-                                selectedContents.remove(contentName);
-                              } else {
-                                selectedContents.add(contentName);
-                              }
-                            });
-                          } else {
-                            // Original play functionality
-                            if (!isRunning) {
-                              launchContent(contentName);
-                            }
-                          }
-                        },
-                        child: Card(
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(12),
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      Image.network(
-                                        DeviceLoadingService.getContentIconUrl(
-                                          'iRig',
-                                          content['icon_url'] ?? '',
-                                        ),
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
+                        itemCount: contents.length,
+                        itemBuilder: (context, index) {
+                          final content = contents[index];
+                          final contentName = content['name'];
+                          final isSelected =
+                              selectedContents.contains(contentName);
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  selectedContents.remove(contentName);
+                                } else {
+                                  selectedContents.add(contentName);
+                                }
+                              });
+                            },
+                            child: Card(
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(12)),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            DeviceLoadingService.getContentIconUrl(
+                                              'iRig',
+                                              content['icon_url'] ?? '',
+                                            ),
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
                                               return Container(
                                                 color: Colors.grey[300],
                                                 child: const Icon(
@@ -324,74 +242,36 @@ class _IrigTestPageState extends State<IrigTestPage> {
                                                 ),
                                               );
                                             },
-                                        loadingBuilder: (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
-                                            return child;
-                                          return Center(
-                                            child: CircularProgressIndicator(
-                                              value:
-                                                  loadingProgress
-                                                          .expectedTotalBytes !=
-                                                      null
-                                                  ? loadingProgress
-                                                            .cumulativeBytesLoaded /
-                                                        loadingProgress
-                                                            .expectedTotalBytes!
-                                                  : null,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      // Show selection overlay in selection mode
-                                      if (widget.selectionMode && isSelected)
-                                        Container(
-                                          color: Colors.black.withOpacity(0.5),
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.check_circle,
-                                              color: Colors.white,
-                                              size: 48,
-                                            ),
+                                            loadingBuilder:
+                                                (context, child, progress) {
+                                              if (progress == null) {
+                                                return child;
+                                              }
+                                              return const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              );
+                                            },
                                           ),
-                                        ),
-                                      // Show running indicator (non-selection mode)
-                                      if (!widget.selectionMode && isRunning)
-                                        Container(
-                                          color: Colors.black.withOpacity(0.5),
-                                          child: Center(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.play_circle_fill,
+                                          if (isSelected)
+                                            Container(
+                                              color:
+                                                  Colors.black.withOpacity(0.5),
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.check_circle,
                                                   color: Colors.white,
                                                   size: 48,
                                                 ),
-                                                SizedBox(height: 8),
-                                                Text(
-                                                  'Running',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                    ],
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Text(
+                                  Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Text(
                                       content['name'],
                                       style: const TextStyle(
                                         fontSize: 16,
@@ -401,85 +281,14 @@ class _IrigTestPageState extends State<IrigTestPage> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    if (!widget.selectionMode && isRunning)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 8.0,
-                                        ),
-                                        child: ElevatedButton.icon(
-                                          onPressed: () =>
-                                              stopContent(content['name']),
-                                          icon: Icon(
-                                            Icons.stop_circle,
-                                            size: 18,
-                                          ),
-                                          label: Text('Stop'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
-                                            padding: EdgeInsets.symmetric(
-                                              vertical: 6,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-          if (!widget.selectionMode && runningContent != null)
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: Card(
-                elevation: 8,
-                color: Color.fromRGBO(143, 148, 251, 1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.play_circle_filled, color: Colors.white),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          '$runningContent is running',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () => stopContent(runningContent!),
-                        icon: Icon(Icons.stop, size: 18),
-                        label: Text('Stop'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
+                    ),
     );
   }
 }

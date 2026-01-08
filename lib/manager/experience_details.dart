@@ -44,12 +44,24 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
   Timer? _searchDebounce;
 
+  late Experience _currentExperience;
+
   @override
   void initState() {
     super.initState();
     if (widget.experienceId != null) {
       editing = true;
       _loadData();
+    } else {
+      _currentExperience = Experience(
+        id: '',
+        name: '',
+        enabled: true,
+        booths: [],
+        collaborators: [],
+        collaboratorUids: [],
+        collaboratorEmails: [],
+      );
     }
   }
 
@@ -59,7 +71,18 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         .doc(widget.experienceId)
         .get();
 
+    if (!doc.exists) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Experience not found")));
+        Navigator.pop(context);
+      }
+      return;
+    }
+
     final experience = Experience.fromDoc(doc);
+    _currentExperience = experience;
+
     _nameController.text = experience.name;
     category = experience.category;
     enabled = experience.enabled;
@@ -71,50 +94,45 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
   Future<void> _searchUsers(String query) async {
     if (query.trim().isEmpty) {
-      setState(() {
-        suggestionResults = [];
-      });
+      setState(() => suggestionResults = []);
       return;
     }
 
-    final String end = query + '\uf8ff';
+    final String end = '$query\uf8ff';
     final List<Map<String, dynamic>> results = [];
 
     try {
-      // Try common user collections
       final currentUser = FirebaseAuth.instance.currentUser;
       final usersSnap = await FirebaseFirestore.instance
           .collection('users')
           .where('role', isEqualTo: 'Manager')
           .where('email', isGreaterThanOrEqualTo: query)
-          .where('email', isLessThanOrEqualTo: end)
+          .where('email', isLessThan: end)
           .limit(10)
           .get();
 
       for (var d in usersSnap.docs) {
-        // Skip suggesting the current user themselves
         if (currentUser != null && d.id == currentUser.uid) continue;
         results.add({'email': d['email'], 'uid': d.id});
       }
     } catch (e) {
-      // ignore errors here
+      // Silent ignore
     }
 
-    // To remove collaborators that are already added from the seach bar dropdown
     final emailsSeen = <String>{};
     final filtered = results.where((r) {
-      final em = (r['email'] ?? '').toString();
+      final em = (r['email'] ?? '').toString().toLowerCase();
       if (emailsSeen.contains(em)) return false;
       emailsSeen.add(em);
-      final already = collaborators.any(
-        (c) => c['email'] == em && c['status'] == 'accepted',
-      );
-      return !already;
+
+      final alreadyAccepted = collaborators.any((c) =>
+          (c['email'] as String?)?.toLowerCase() == em &&
+          c['status'] == 'accepted');
+
+      return !alreadyAccepted;
     }).toList();
 
-    setState(() {
-      suggestionResults = filtered;
-    });
+    setState(() => suggestionResults = filtered);
   }
 
   Future<void> _save() async {
@@ -131,66 +149,65 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     }
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("User not logged in")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User not logged in")));
       return;
     }
 
-    final ref = FirebaseFirestore.instance.collection("Experiences");
+    // Fully update the model using copyWith from the actual class
+    _currentExperience = _currentExperience.copyWith(
+      name: _nameController.text.trim(),
+      category: category,
+      enabled: enabled,
+      booths: booths,
+      creatorId: editing ? _currentExperience.creatorId : currentUser.uid,
+      managerId: editing ? _currentExperience.managerId : currentUser.uid,
+      lastUpdated: Timestamp.now(),
+      // Ensure collaborator arrays are up-to-date
+      collaborators: collaborators,
+      collaboratorUids: _currentExperience.collaboratorUids,
+      collaboratorEmails: _currentExperience.collaboratorEmails,
+    );
+
+    final ref = FirebaseFirestore.instance.collection("Experiences").doc(
+        editing ? widget.experienceId : null);
 
     if (editing) {
-      await ref.doc(widget.experienceId).update({
-        "name": _nameController.text,
-        "enabled": enabled,
-        "category": category,
-        "last_updated": Timestamp.now(),
-        "booths": booths,
-      });
+      await ref.update(_currentExperience.toMap());
     } else {
-      await ref.add({
-        "name": _nameController.text,
-        "enabled": true,
-        "category": category,
-        "managerId": currentUser.uid,
-        "last_updated": Timestamp.now(),
-        "booths": booths,
-      });
+      final docRef = await FirebaseFirestore.instance
+          .collection("Experiences")
+          .add(_currentExperience.toMap());
+      // Update local ID if needed elsewhere
+      _currentExperience = _currentExperience.copyWith(id: docRef.id);
     }
 
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _deleteExperience() async {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Confirm Delete"),
-          content: const Text(
-            "Are you sure you want to delete this experience?",
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: const Text("Are you sure you want to delete this experience?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("No")),
+          TextButton(
+            onPressed: () async {
+              await FirebaseFirestore.instance
+                  .collection("Experiences")
+                  .doc(widget.experienceId)
+                  .delete();
+              if (mounted) {
+                Navigator.pop(context); // dialog
+                Navigator.pop(context); // page
+              }
+            },
+            child: const Text("Yes", style: TextStyle(color: Colors.red)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context), // Close dialog
-              child: const Text("No"),
-            ),
-            TextButton(
-              onPressed: () async {
-                // Perform delete
-                await FirebaseFirestore.instance
-                    .collection("Experiences")
-                    .doc(widget.experienceId)
-                    .delete();
-
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Back to experiences page
-              },
-              child: const Text("Yes", style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -200,8 +217,14 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     });
   }
 
+  void _removeBooth(int index) {
+    setState(() {
+      booths.removeAt(index);
+    });
+  }
+
   void _toggleSelectSuggestion(Map<String, dynamic> suggestion) {
-    final email = suggestion['email'] as String? ?? '';
+    final email = (suggestion['email'] as String?) ?? '';
     final exists = selectedSuggestions.any((s) => s['email'] == email);
     setState(() {
       if (exists) {
@@ -215,188 +238,157 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   Future<void> _addSelectedCollaborators() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('User not logged in')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('User not logged in')));
       return;
     }
 
     if (widget.experienceId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please save the experience first')),
-      );
+          const SnackBar(content: Text('Please save the experience first')));
       return;
     }
 
-    final ref = FirebaseFirestore.instance
-        .collection('Experiences')
-        .doc(widget.experienceId);
+    final experienceRef =
+        FirebaseFirestore.instance.collection('Experiences').doc(widget.experienceId!);
     final notifRef = FirebaseFirestore.instance.collection('Notifications');
 
-    // Ensure we have latest collaborators
-    final doc = await ref.get();
-    final data = doc.data();
-    List existing = [];
-    if (data != null && data['collaborators'] != null)
-      existing = List.from(data['collaborators']);
+    final doc = await experienceRef.get();
+    List<dynamic> existingCollabs = List.from(doc.data()?['collaborators'] ?? []);
+
+    final batch = FirebaseFirestore.instance.batch();
 
     for (var s in selectedSuggestions) {
-      final rawEmail = s['email'] as String? ?? '';
-      final email = rawEmail.toLowerCase();
+      final rawEmail = (s['email'] as String?) ?? '';
+      final email = rawEmail.toLowerCase().trim();
       final uid = s['uid'] as String?;
 
-      // Prevent inviting yourself
-      if (currentUser.email != null &&
-          email == currentUser.email!.toLowerCase()) {
-        // skip self-invite
-        continue;
-      }
+      if (currentUser.email?.toLowerCase() == email) continue;
 
-      // avoid duplicates
-      final alreadyPending = existing.any(
-        (c) => (c['email'] as String?)?.toLowerCase() == email,
-      );
-      if (alreadyPending) {
-        continue;
-      }
+      final alreadyExists = existingCollabs.any(
+          (c) => (c['email'] as String?)?.toLowerCase() == email);
 
-      // add to local list with pending
-      final entry = {
+      if (alreadyExists) continue;
+
+      final newCollab = {
         'email': email,
         'uid': uid,
         'status': 'pending',
         'invitedBy': currentUser.email?.toLowerCase(),
       };
-      existing.add(entry);
+      existingCollabs.add(newCollab);
 
-      // create notification doc for recipient using AppNotification model
+      // Create notification
       final notification = AppNotification(
-        id: '', // Will be set by Firestore
+        id: '',
+        type: 'invite',
         recipientEmail: email,
         recipientUid: uid,
-        type: 'invite',
-        experienceId: widget.experienceId ?? '',
-        experienceName: _nameController.text,
-        senderEmail: currentUser.email?.toLowerCase() ?? '',
+        experienceId: widget.experienceId!,
+        experienceName: _nameController.text.trim(),
+        senderEmail: currentUser.email?.toLowerCase(),
         status: 'unread',
         createdAt: Timestamp.now(),
       );
-      await notifRef.add(notification.toMap());
+
+      final notifDoc = notifRef.doc();
+      batch.set(notifDoc, notification.toMap());
     }
 
-    // to maintain quick lookup arrays for collaborator uids and emails
-    // Only include collaborators whose status is 'accepted'
-    final Set<String> collabUids = {};
-    final Set<String> collabEmails = {};
-    for (var e in existing) {
-      final status = (e['status'] as String?) ?? '';
-      if (status != 'accepted') continue;
-      final uid = (e['uid'] as String?);
-      final email = (e['email'] as String?)?.toLowerCase();
-      if (uid != null && uid.isNotEmpty) collabUids.add(uid);
-      if (email != null && email.isNotEmpty) collabEmails.add(email);
+    // Recompute accepted collaborator IDs & emails
+    final Set<String> uids = {};
+    final Set<String> emails = {};
+    for (var c in existingCollabs) {
+      if ((c['status'] as String?) == 'accepted') {
+        final uid = c['uid'] as String?;
+        final email = (c['email'] as String?)?.toLowerCase();
+        if (uid != null) uids.add(uid);
+        if (email != null) emails.add(email);
+      }
     }
 
-    await ref.update({
-      'collaborators': existing,
-      'collaboratorUids': collabUids.toList(),
-      'collaboratorEmails': collabEmails.toList(),
+    batch.update(experienceRef, {
+      'collaborators': existingCollabs,
+      'collaboratorUids': uids.toList(),
+      'collaboratorEmails': emails.toList(),
     });
 
-    // refresh local
+    await batch.commit();
+
     setState(() {
-      collaborators = List<Map<String, dynamic>>.from(
-        existing.map((e) => Map<String, dynamic>.from(e)),
-      );
-      selectedSuggestions = [];
-      suggestionResults = [];
+      collaborators = existingCollabs
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      selectedSuggestions.clear();
+      suggestionResults.clear();
       _collabSearchController.clear();
-    });
-  }
-
-  void _removeBooth(int index) {
-    setState(() {
-      booths.removeAt(index);
     });
   }
 
   Future<void> _navigateToContentPage(String device) async {
     dynamic result;
 
-    // for initial content selections
     final initialSelections = booths
-        .where((b) => (b['device'] == device) && (b['contentName'] != null))
+        .where((b) => b['device'] == device && b['contentName'] != null)
         .map((b) => b['contentName'] as String)
         .toList();
 
-    if (device == "iCube") {
-      result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => iCubeTestPage(
-            selectionMode: true,
-            managerId: FirebaseAuth.instance.currentUser?.uid,
-            experienceId: widget.experienceId,
-            initialSelectedContents: initialSelections,
-          ),
-        ),
-      );
-    } else if (device == "iRig") {
-      result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => IrigTestPage(
-            selectionMode: true,
-            managerId: FirebaseAuth.instance.currentUser?.uid,
-            experienceId: widget.experienceId,
-            initialSelectedContents: initialSelections,
-          ),
-        ),
-      );
-    } else if (device == "iCreate") {
-      result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => iCreateTestPage(
-            selectionMode: true,
-            managerId: FirebaseAuth.instance.currentUser?.uid,
-            experienceId: widget.experienceId,
-            initialSelectedContents: initialSelections,
-          ),
-        ),
-      );
-    } else if (device == "Storytime") {
-      result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StoryTimeTestPage(
-            selectionMode: true,
-            managerId: FirebaseAuth.instance.currentUser?.uid,
-            experienceId: widget.experienceId,
-            initialSelectedContents: initialSelections,
-          ),
-        ),
-      );
+    Widget page;
+    switch (device) {
+      case "iCube":
+        page = iCubeTestPage(
+          selectionMode: true,
+          managerId: FirebaseAuth.instance.currentUser?.uid,
+          experienceId: widget.experienceId,
+          initialSelectedContents: initialSelections,
+        );
+        break;
+      case "iRig":
+        page = IrigTestPage(
+          selectionMode: true,
+          managerId: FirebaseAuth.instance.currentUser?.uid,
+          experienceId: widget.experienceId,
+          initialSelectedContents: initialSelections,
+        );
+        break;
+      case "iCreate":
+        page = iCreateTestPage(
+          selectionMode: true,
+          managerId: FirebaseAuth.instance.currentUser?.uid,
+          experienceId: widget.experienceId,
+          initialSelectedContents: initialSelections,
+        );
+        break;
+      case "Storytime":
+        page = StoryTimeTestPage(
+          selectionMode: true,
+          managerId: FirebaseAuth.instance.currentUser?.uid,
+          experienceId: widget.experienceId,
+          initialSelectedContents: initialSelections,
+        );
+        break;
+      default:
+        return;
     }
 
+    result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+
     if (result != null) {
-      // Accept either a single String (backwards compatible) or a List<String>
-      // Only add booths that are not already present for this device
-      final existingContents = booths
+      final existingNames = booths
           .where((b) => b['device'] == device && b['contentName'] != null)
           .map((b) => (b['contentName'] as String).toLowerCase())
           .toSet();
 
-      if (result is String) {
+      if (result is String && result.trim().isNotEmpty) {
         final name = result.trim();
-        if (!existingContents.contains(name.toLowerCase())) {
+        if (!existingNames.contains(name.toLowerCase())) {
           _addBooth(device, contentName: name);
         }
       } else if (result is List) {
         for (var item in result) {
           if (item is String) {
             final name = item.trim();
-            if (!existingContents.contains(name.toLowerCase())) {
+            if (name.isNotEmpty && !existingNames.contains(name.toLowerCase())) {
               _addBooth(device, contentName: name);
             }
           }
@@ -415,12 +407,12 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: "Experience Name"),
               ),
-
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: category,
@@ -428,31 +420,20 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                   labelText: "Category",
                   border: OutlineInputBorder(),
                 ),
-                items: categories.map((cat) {
-                  return DropdownMenuItem(value: cat, child: Text(cat));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    category = value;
-                  });
-                },
+                items: categories
+                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                    .toList(),
+                onChanged: (value) => setState(() => category = value),
               ),
-
               const SizedBox(height: 24),
 
               if (editing) ...[
-                // Add Collaborator section
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Add Collaborator",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                const Text("Add Collaborator",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(8),
@@ -460,10 +441,8 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Add collaborators to this event",
-                        style: TextStyle(fontSize: 14),
-                      ),
+                      const Text("Add collaborators to this event",
+                          style: TextStyle(fontSize: 14)),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _collabSearchController,
@@ -473,48 +452,39 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                         ),
                         onChanged: (value) {
                           _searchDebounce?.cancel();
-                          _searchDebounce = Timer(
-                            const Duration(milliseconds: 300),
-                            () {
-                              _searchUsers(value.trim().toLowerCase());
-                            },
-                          );
+                          _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+                            _searchUsers(value.trim().toLowerCase());
+                          });
                         },
                       ),
-
-                      // suggestions dropdown
                       if (suggestionResults.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
-                          constraints: BoxConstraints(maxHeight: 160),
+                          constraints: const BoxConstraints(maxHeight: 160),
                           child: ListView.builder(
                             shrinkWrap: true,
                             itemCount: suggestionResults.length,
                             itemBuilder: (context, idx) {
                               final s = suggestionResults[idx];
                               final email = s['email'] ?? '';
-                              final selected = selectedSuggestions.any(
-                                (e) => e['email'] == email,
-                              );
+                              final selected = selectedSuggestions
+                                  .any((e) => e['email'] == email);
                               return ListTile(
-                                tileColor: selected
-                                    ? Colors.green.shade50
-                                    : null,
+                                tileColor:
+                                    selected ? Colors.green.shade50 : null,
                                 title: Text(email),
-                                subtitle: const Text("Invite as collaborator"),
+                                subtitle:
+                                    const Text("Invite as collaborator"),
                                 onTap: () => _toggleSelectSuggestion(s),
                                 trailing: selected
-                                    ? Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
-                                      )
+                                    ? const Icon(Icons.check_circle,
+                                        color: Colors.green)
                                     : null,
                               );
                             },
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -523,11 +493,6 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                             onPressed: selectedSuggestions.isEmpty
                                 ? null
                                 : _addSelectedCollaborators,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: selectedSuggestions.isEmpty
-                                  ? Colors.grey
-                                  : null,
-                            ),
                             child: const Text('Add To Experience'),
                           ),
                         ],
@@ -535,13 +500,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
-                // Collaborators box
                 Container(
                   width: double.infinity,
-                  padding: EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(8),
@@ -549,61 +511,44 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Collaborators',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      const Text('Collaborators',
+                          style:
+                              TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
-                      if (collaborators.isEmpty)
-                        const Text(
-                          'No collaborators yet.',
-                          style: TextStyle(color: Colors.grey),
-                        )
-                      else
-                        Column(
-                          children: collaborators.map((c) {
-                            final status = c['status'] ?? 'pending';
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                leading: Icon(
-                                  Icons.person,
-                                  color: status == 'accepted'
-                                      ? Colors.green
-                                      : Colors.orange,
-                                ),
-                                title: Text(c['email'] ?? ''),
-                                subtitle: Text(
-                                  status == 'pending'
-                                      ? 'Pending invite'
-                                      : 'Collaborator',
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                      collaborators.isEmpty
+                          ? const Text('No collaborators yet.',
+                              style: TextStyle(color: Colors.grey))
+                          : Column(
+                              children: collaborators.map((c) {
+                                final status = c['status'] ?? 'pending';
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    leading: Icon(Icons.person,
+                                        color: status == 'accepted'
+                                            ? Colors.green
+                                            : Colors.orange),
+                                    title: Text(c['email'] ?? ''),
+                                    subtitle: Text(status == 'pending'
+                                        ? 'Pending invite'
+                                        : 'Collaborator'),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
               ],
 
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Booths",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-
+              const Text("Booths",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-
               SizedBox(
-                height: 300, // Fixed height for the booths list
+                height: 300,
                 child: booths.isEmpty
-                    ? Center(
+                    ? const Center(
                         child: Text(
                           "No booths added yet.\nTap a device below to add one.",
                           textAlign: TextAlign.center,
@@ -615,30 +560,22 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                         itemBuilder: (context, index) {
                           final booth = booths[index];
                           return Card(
-                            margin: EdgeInsets.only(bottom: 8),
+                            margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              leading: Icon(
-                                Icons.device_hub,
-                                color: Color.fromRGBO(143, 148, 251, 1),
-                              ),
-                              title: Text(
-                                booth["device"],
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                              leading: const Icon(Icons.device_hub,
+                                  color: Color.fromRGBO(143, 148, 251, 1)),
+                              title: Text(booth["device"],
+                                  style:
+                                      const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: booth["contentName"] != null
-                                  ? Text(
-                                      "Content: ${booth["contentName"]}",
-                                      style: TextStyle(fontSize: 12),
-                                    )
-                                  : Text(
-                                      "No specific content",
+                                  ? Text("Content: ${booth["contentName"]}",
+                                      style: const TextStyle(fontSize: 12))
+                                  : const Text("No specific content",
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic)),
                               trailing: IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
+                                icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () => _removeBooth(index),
                               ),
                             ),
@@ -646,12 +583,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                         },
                       ),
               ),
-
               const SizedBox(height: 12),
-
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(8),
@@ -659,37 +594,23 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Add Booth",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    SizedBox(height: 8),
+                    const Text("Add Booth",
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: devices.map((device) {
-                        return ElevatedButton(
-                          onPressed: () {
-                            if (device == "iCube" ||
-                                device == "iRig" ||
-                                device == "iCreate" ||
-                                device == "Storytime") {
-                              _navigateToContentPage(device);
-                            } else {
-                              _addBooth(device);
-                            }
-                          },
-                          child: Text(device),
-                        );
-                      }).toList(),
+                      children: devices
+                          .map((device) => ElevatedButton(
+                                onPressed: () => _navigateToContentPage(device),
+                                child: Text(device),
+                              ))
+                          .toList(),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
               if (editing)
                 Padding(
@@ -698,14 +619,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: _deleteExperience,
-                      child: const Text(
-                        "Delete",
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      child: const Text("Delete",
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ),
@@ -722,5 +639,13 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _nameController.dispose();
+    _collabSearchController.dispose();
+    super.dispose();
   }
 }

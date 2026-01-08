@@ -28,7 +28,7 @@ class BottomNavigationWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Get current route name
-    final currentRoute = ModalRoute.of(context)?.settings.name;
+    ModalRoute.of(context)?.settings.name;
 
     return SafeArea(
       child: Container(

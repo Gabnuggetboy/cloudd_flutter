@@ -5,7 +5,7 @@ import 'package:cloudd_flutter/user/trading_page.dart';
 import 'package:cloudd_flutter/user/user_account_page.dart';
 import 'package:cloudd_flutter/user/camera_page.dart';
 
-class BottomNavigationWidget extends StatelessWidget {
+class BottomNavigationWidget extends StatefulWidget {
   final Function(int)? onIconTap;
   final BuildContext context;
   final double homeIconSize;
@@ -36,13 +36,40 @@ class BottomNavigationWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Get current route name
-    final currentRoute = ModalRoute.of(context)?.settings.name;
+  State<BottomNavigationWidget> createState() => _BottomNavigationWidgetState();
+}
 
+class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
+  late int _selectedIndex;
+
+  int _initialIndexFromContext(BuildContext ctx) {
+    final type = ctx.widget.runtimeType;
+    if (type == HomePage) return 0;
+    if (type == TradingPage) return 1;
+    if (type == CameraPage) return 2;
+    if (type == NotificationsPage) return 3;
+    if (type == AccountPage) return 4;
+    return 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = _initialIndexFromContext(widget.context);
+  }
+
+  void _onTap(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    widget.onIconTap?.call(index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         color: Theme.of(context).scaffoldBackgroundColor,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -51,11 +78,14 @@ class BottomNavigationWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.home, size: homeIconSize),
+                  icon: Icon(
+                    _selectedIndex == 0 ? Icons.home : Icons.home_outlined,
+                    size: widget.homeIconSize,
+                  ),
                   onPressed: () {
-                    onIconTap?.call(0);
+                    _onTap(0);
                     // Only navigate if not already on HomePage
-                    if (context.widget.runtimeType != HomePage) {
+                    if (widget.context.widget.runtimeType != HomePage) {
                       Navigator.pushReplacement(
                         context,
                         PageRouteBuilder(
@@ -70,7 +100,7 @@ class BottomNavigationWidget extends StatelessWidget {
                   },
                 ),
                 Text(
-                  homeLabel,
+                  widget.homeLabel,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -82,11 +112,14 @@ class BottomNavigationWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.search, size: tradingIconSize),
+                  icon: Icon(
+                    _selectedIndex == 1 ? Icons.search : Icons.search_outlined,
+                    size: widget.tradingIconSize,
+                  ),
                   onPressed: () {
-                    onIconTap?.call(2);
+                    _onTap(1);
                     // Only navigate if not already on TradingPage
-                    if (context.widget.runtimeType != TradingPage) {
+                    if (widget.context.widget.runtimeType != TradingPage) {
                       Navigator.pushReplacement(
                         context,
                         PageRouteBuilder(
@@ -101,7 +134,7 @@ class BottomNavigationWidget extends StatelessWidget {
                   },
                 ),
                 Text(
-                  tradingLabel,
+                  widget.tradingLabel,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -113,9 +146,14 @@ class BottomNavigationWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.camera_alt, size: cameraIconSize),
+                  icon: Icon(
+                    _selectedIndex == 2
+                        ? Icons.camera_alt
+                        : Icons.camera_alt_outlined,
+                    size: widget.cameraIconSize,
+                  ),
                   onPressed: () {
-                    onIconTap?.call(2);
+                    _onTap(2);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -125,7 +163,7 @@ class BottomNavigationWidget extends StatelessWidget {
                   },
                 ),
                 Text(
-                  cameraLabel,
+                  widget.cameraLabel,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -137,11 +175,17 @@ class BottomNavigationWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.notifications, size: notificationIconSize),
+                  icon: Icon(
+                    _selectedIndex == 3
+                        ? Icons.notifications
+                        : Icons.notifications_outlined,
+                    size: widget.notificationIconSize,
+                  ),
                   onPressed: () {
-                    onIconTap?.call(3);
+                    _onTap(3);
                     // Only navigate if not already on NotificationsPage
-                    if (context.widget.runtimeType != NotificationsPage) {
+                    if (widget.context.widget.runtimeType !=
+                        NotificationsPage) {
                       Navigator.pushReplacement(
                         context,
                         PageRouteBuilder(
@@ -156,7 +200,7 @@ class BottomNavigationWidget extends StatelessWidget {
                   },
                 ),
                 Text(
-                  notificationLabel,
+                  widget.notificationLabel,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -168,11 +212,14 @@ class BottomNavigationWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.person, size: accountIconSize),
+                  icon: Icon(
+                    _selectedIndex == 4 ? Icons.person : Icons.person_outline,
+                    size: widget.accountIconSize,
+                  ),
                   onPressed: () {
-                    onIconTap?.call(4);
+                    _onTap(4);
                     // Only navigate if not already on AccountPage
-                    if (context.widget.runtimeType != AccountPage) {
+                    if (widget.context.widget.runtimeType != AccountPage) {
                       Navigator.pushReplacement(
                         context,
                         PageRouteBuilder(
@@ -187,7 +234,7 @@ class BottomNavigationWidget extends StatelessWidget {
                   },
                 ),
                 Text(
-                  accountLabel,
+                  widget.accountLabel,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,

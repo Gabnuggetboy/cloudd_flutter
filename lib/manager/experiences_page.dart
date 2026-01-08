@@ -14,8 +14,6 @@ class ExperiencesPage extends StatefulWidget {
 }
 
 class _ExperiencesPageState extends State<ExperiencesPage> {
-  bool experienceEnabled = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,11 +23,6 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // TopSettingsTitleWidget(
-              //   showCloudd: false,
-              //   showManageExperiences: true,
-              // ),
-              // Replaced settings icon with notifications icon
               TopSettingsTitleWidget(
                 showCloudd: false,
                 showManageExperiences: true,
@@ -45,90 +38,13 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
 
               const SizedBox(height: 12),
 
-              /*
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Theme.of(context).colorScheme.surface,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Align(
-                        alignment: Alignment.topRight,
-                        child: Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.star,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Category',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Experience #1',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Last Updated 30+ Days ago',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Switch(
-                      value: experienceEnabled,
-                      onChanged: (value) {
-                        setState(() {
-                          experienceEnabled = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              */
               Expanded(
                 child: Builder(
                   builder: (context) {
                     final user = FirebaseAuth.instance.currentUser;
-                    if (user == null)
+                    if (user == null) {
                       return const Center(child: Text('Not logged in'));
+                    }
 
                     final managerStream = FirebaseFirestore.instance
                         .collection('Experiences')
@@ -169,7 +85,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                               builder: (context, emailSnap) {
                                 final emailDocs = emailSnap.data?.docs ?? [];
 
-                                // merge unique by doc id
+                                // Merge unique documents by ID
                                 final Map<String, QueryDocumentSnapshot>
                                 merged = {};
                                 for (final d in managerDocs) merged[d.id] = d;
@@ -198,12 +114,15 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                         );
                                   });
 
-                                if ((managerSnap.connectionState ==
+                                final isLoading =
+                                    (managerSnap.connectionState ==
                                         ConnectionState.waiting) &&
                                     (collabSnap.connectionState ==
                                         ConnectionState.waiting) &&
                                     (emailSnap.connectionState ==
-                                        ConnectionState.waiting)) {
+                                        ConnectionState.waiting);
+
+                                if (isLoading) {
                                   return const Center(
                                     child: CircularProgressIndicator(),
                                   );
@@ -222,12 +141,15 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                     final experienceId = doc.id;
                                     final experience = Experience.fromDoc(doc);
 
-                                    final boothsCount =
-                                        experience.booths.length;
+                                    final category =
+                                        experience.category?.isNotEmpty == true
+                                        ? experience.category!
+                                        : '${experience.booths.length} Booths';
+
                                     final name = experience.name.isEmpty
                                         ? 'Untitled Experience'
                                         : experience.name;
-                                    final enabled = experience.enabled;
+
                                     final lastUpdatedString =
                                         experience.lastUpdated != null
                                         ? experience.lastUpdated!
@@ -263,24 +185,63 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                         ),
                                         child: Row(
                                           children: [
-                                            Container(
-                                              width: 72,
-                                              height: 72,
-                                              decoration: BoxDecoration(
-                                                color: Colors.red,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: const Align(
-                                                alignment: Alignment.topRight,
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(4.0),
-                                                  child: Icon(
-                                                    Icons.star,
-                                                    color: Colors.white,
-                                                    size: 16,
-                                                  ),
-                                                ),
+                                            // Logo or placeholder
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child: Container(
+                                                width: 72,
+                                                height: 72,
+                                                color: Colors.grey[300],
+                                                child:
+                                                    experience.logoUrl !=
+                                                            null &&
+                                                        experience
+                                                            .logoUrl!
+                                                            .isNotEmpty
+                                                    ? Image.network(
+                                                        experience.logoUrl!,
+                                                        fit: BoxFit.cover,
+                                                        loadingBuilder:
+                                                            (
+                                                              context,
+                                                              child,
+                                                              loadingProgress,
+                                                            ) {
+                                                              if (loadingProgress ==
+                                                                  null)
+                                                                return child;
+                                                              return Center(
+                                                                child: CircularProgressIndicator(
+                                                                  value:
+                                                                      loadingProgress
+                                                                              .expectedTotalBytes !=
+                                                                          null
+                                                                      ? loadingProgress.cumulativeBytesLoaded /
+                                                                            loadingProgress.expectedTotalBytes!
+                                                                      : null,
+                                                                ),
+                                                              );
+                                                            },
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) {
+                                                              return const Icon(
+                                                                Icons
+                                                                    .image_not_supported,
+                                                                color:
+                                                                    Colors.grey,
+                                                              );
+                                                            },
+                                                      )
+                                                    : const Icon(
+                                                        Icons.image,
+                                                        color: Colors.grey,
+                                                        size: 32,
+                                                      ),
                                               ),
                                             ),
 
@@ -292,7 +253,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                                     CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    "$boothsCount Booths",
+                                                    category,
                                                     style: TextStyle(
                                                       fontSize: 12,
                                                       color: Theme.of(context)
@@ -326,7 +287,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                             ),
 
                                             Switch(
-                                              value: enabled,
+                                              value: experience.enabled,
                                               onChanged: (value) {
                                                 FirebaseFirestore.instance
                                                     .collection("Experiences")
