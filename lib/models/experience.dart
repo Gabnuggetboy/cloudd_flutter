@@ -7,6 +7,7 @@ class Experience {
   final String? device;
   final String? description;
   final String? logoUrl;
+  final String? imageUrl;
   final bool enabled;
   final String? creatorId;
   final String? managerId;
@@ -33,6 +34,7 @@ class Experience {
     this.collaborators = const [],
     this.collaboratorUids = const [],
     this.collaboratorEmails = const [],
+    this.imageUrl,
   });
 
   factory Experience.fromDoc(DocumentSnapshot doc) {
@@ -49,6 +51,7 @@ class Experience {
       managerId: data['managerId'] as String?,
       createdAt: data['createdAt'] as Timestamp?,
       lastUpdated: data['last_updated'] as Timestamp?,
+      imageUrl: data['imageUrl'] as String?,
       booths:
           (data['booths'] as List?)
               ?.map((b) => Map<String, dynamic>.from(b as Map))
@@ -88,6 +91,7 @@ class Experience {
       'collaborators': collaborators,
       'collaboratorUids': collaboratorUids,
       'collaboratorEmails': collaboratorEmails,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -107,6 +111,7 @@ class Experience {
     List<Map<String, dynamic>>? collaborators,
     List<String>? collaboratorUids,
     List<String>? collaboratorEmails,
+    String? imageUrl,
   }) {
     return Experience(
       id: id ?? this.id,
@@ -124,6 +129,7 @@ class Experience {
       collaborators: collaborators ?? this.collaborators,
       collaboratorUids: collaboratorUids ?? this.collaboratorUids,
       collaboratorEmails: collaboratorEmails ?? this.collaboratorEmails,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:cloudd_flutter/webapp_access_page.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/services/recently_played_service.dart';
 import 'package:cloudd_flutter/models/experience.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ExploreExperiencePage extends StatefulWidget {
   final String experienceId;
@@ -78,6 +79,42 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   void dispose() {
     searchController.dispose();
     super.dispose();
+  }
+
+    Stream<QuerySnapshot> signupStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('experience_signups')
+        .where('experienceId', isEqualTo: widget.experienceId)
+        .where('userId', isEqualTo: user.uid)
+        .limit(1)
+        .snapshots();
+  }
+
+  Future<void> signUp() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('experience_signups')
+        .add({
+          'experienceId': widget.experienceId,
+          'experienceName': widget.experienceName,
+          'userId': user.uid,
+          'userEmail': user.email,
+          'signedAt': Timestamp.now(),
+        });
+  }
+
+  Future<void> cancelSignUp(String docId) async {
+    await FirebaseFirestore.instance
+        .collection('experience_signups')
+        .doc(docId)
+        .delete();
   }
 
   Future<void> _loadAllData() async {
@@ -578,6 +615,61 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       },
       child: Scaffold(
         appBar: AppBar(title: Text('Explore: $displayName')),
+         bottomNavigationBar: SafeArea(
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: StreamBuilder<QuerySnapshot>(
+      stream: signupStream(),
+      builder: (context, snapshot) {
+        final isSignedUp =
+            snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+        final signupDocId =
+            isSignedUp ? snapshot.data!.docs.first.id : null;
+
+        return SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: () async {
+              if (isSignedUp) {
+                await cancelSignUp(signupDocId!);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Signup cancelled'),
+                  ),
+                );
+              } else {
+                await signUp();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Successfully signed up'),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isSignedUp ? Colors.red : const Color.fromRGBO(143, 148, 251, 1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              isSignedUp ? 'Cancel Sign Up' : 'Sign Up for Experience',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  ),
+),
+
         body: RefreshIndicator(
           onRefresh: _loadAllData,
           child: SingleChildScrollView(

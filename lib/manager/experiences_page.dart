@@ -185,64 +185,46 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                         ),
                                         child: Row(
                                           children: [
-                                            // Logo or placeholder
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              child: Container(
-                                                width: 72,
-                                                height: 72,
-                                                color: Colors.grey[300],
-                                                child:
-                                                    experience.logoUrl !=
+                                            // Image or placeholder
+                                            Container(
+                                              width: 72,
+                                              height: 72,
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                image:
+                                                    experience.imageUrl !=
                                                             null &&
                                                         experience
-                                                            .logoUrl!
+                                                            .imageUrl!
                                                             .isNotEmpty
-                                                    ? Image.network(
-                                                        experience.logoUrl!,
+                                                    ? DecorationImage(
+                                                        image: NetworkImage(
+                                                          experience.imageUrl!,
+                                                        ),
                                                         fit: BoxFit.cover,
-                                                        loadingBuilder:
-                                                            (
-                                                              context,
-                                                              child,
-                                                              loadingProgress,
-                                                            ) {
-                                                              if (loadingProgress ==
-                                                                  null)
-                                                                return child;
-                                                              return Center(
-                                                                child: CircularProgressIndicator(
-                                                                  value:
-                                                                      loadingProgress
-                                                                              .expectedTotalBytes !=
-                                                                          null
-                                                                      ? loadingProgress.cumulativeBytesLoaded /
-                                                                            loadingProgress.expectedTotalBytes!
-                                                                      : null,
-                                                                ),
-                                                              );
-                                                            },
-                                                        errorBuilder:
-                                                            (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                            ) {
-                                                              return const Icon(
-                                                                Icons
-                                                                    .image_not_supported,
-                                                                color:
-                                                                    Colors.grey,
-                                                              );
-                                                            },
                                                       )
-                                                    : const Icon(
-                                                        Icons.image,
-                                                        color: Colors.grey,
-                                                        size: 32,
-                                                      ),
+                                                    : null,
+                                                color:
+                                                    experience.imageUrl ==
+                                                            null ||
+                                                        experience
+                                                            .imageUrl!
+                                                            .isEmpty
+                                                    ? Colors.grey[300]
+                                                    : null,
                                               ),
+                                              child:
+                                                  experience.imageUrl == null ||
+                                                      experience
+                                                          .imageUrl!
+                                                          .isEmpty
+                                                  ? const Icon(
+                                                      Icons.image,
+                                                      color: Colors.grey,
+                                                      size: 32,
+                                                    )
+                                                  : null,
                                             ),
 
                                             const SizedBox(width: 12),

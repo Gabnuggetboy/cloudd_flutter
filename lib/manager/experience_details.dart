@@ -8,6 +8,9 @@ import 'add_icubecontent_page.dart';
 import 'add_irigcontent_page.dart';
 import 'add_icreatecontent_page.dart';
 import 'add_storytimecontent_page.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ExperienceDetailsPage extends StatefulWidget {
   final String? experienceId;
@@ -21,6 +24,10 @@ class ExperienceDetailsPage extends StatefulWidget {
 class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _collabSearchController = TextEditingController();
+
+  File? _selectedImage;
+  String? _imageUrl;
+  bool _uploadingImage = false;
 
   String? category;
 
@@ -73,8 +80,9 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
     if (!doc.exists) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Experience not found")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Experience not found")));
         Navigator.pop(context);
       }
       return;
@@ -86,10 +94,46 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     _nameController.text = experience.name;
     category = experience.category;
     enabled = experience.enabled;
+    _imageUrl = experience.imageUrl;
     booths = List<Map<String, dynamic>>.from(experience.booths);
     collaborators = List<Map<String, dynamic>>.from(experience.collaborators);
 
     setState(() {});
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedImage = File(picked.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(String experienceId) async {
+    if (_selectedImage == null) return _imageUrl;
+
+    try {
+      setState(() => _uploadingImage = true);
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('experience_images')
+          .child('$experienceId.jpg');
+
+      await ref.putFile(_selectedImage!);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      debugPrint("Image upload failed: $e");
+      return null;
+    } finally {
+      setState(() => _uploadingImage = false);
+    }
   }
 
   Future<void> _searchUsers(String query) async {
@@ -125,9 +169,11 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       if (emailsSeen.contains(em)) return false;
       emailsSeen.add(em);
 
-      final alreadyAccepted = collaborators.any((c) =>
-          (c['email'] as String?)?.toLowerCase() == em &&
-          c['status'] == 'accepted');
+      final alreadyAccepted = collaborators.any(
+        (c) =>
+            (c['email'] as String?)?.toLowerCase() == em &&
+            c['status'] == 'accepted',
+      );
 
       return !alreadyAccepted;
     }).toList();
@@ -149,10 +195,41 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
     }
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User not logged in")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("User not logged in")));
       return;
     }
+
+    String experienceId;
+    final ref = FirebaseFirestore.instance.collection("Experiences");
+
+    if (editing) {
+      experienceId = widget.experienceId!;
+    } else {
+      final docRef = await FirebaseFirestore.instance
+          .collection("Experiences")
+          .add(
+            _currentExperience
+                .copyWith(
+                  name: _nameController.text.trim(),
+                  category: category,
+                  enabled: enabled,
+                  booths: booths,
+                  creatorId: currentUser.uid,
+                  managerId: currentUser.uid,
+                  lastUpdated: Timestamp.now(),
+                  collaborators: collaborators,
+                  collaboratorUids: _currentExperience.collaboratorUids,
+                  collaboratorEmails: _currentExperience.collaboratorEmails,
+                )
+                .toMap(),
+          );
+      experienceId = docRef.id;
+      _currentExperience = _currentExperience.copyWith(id: docRef.id);
+    }
+
+    final imageUrl = await _uploadImage(experienceId);
 
     // Fully update the model using copyWith from the actual class
     _currentExperience = _currentExperience.copyWith(
@@ -163,24 +240,14 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       creatorId: editing ? _currentExperience.creatorId : currentUser.uid,
       managerId: editing ? _currentExperience.managerId : currentUser.uid,
       lastUpdated: Timestamp.now(),
+      imageUrl: imageUrl,
       // Ensure collaborator arrays are up-to-date
       collaborators: collaborators,
       collaboratorUids: _currentExperience.collaboratorUids,
       collaboratorEmails: _currentExperience.collaboratorEmails,
     );
 
-    final ref = FirebaseFirestore.instance.collection("Experiences").doc(
-        editing ? widget.experienceId : null);
-
-    if (editing) {
-      await ref.update(_currentExperience.toMap());
-    } else {
-      final docRef = await FirebaseFirestore.instance
-          .collection("Experiences")
-          .add(_currentExperience.toMap());
-      // Update local ID if needed elsewhere
-      _currentExperience = _currentExperience.copyWith(id: docRef.id);
-    }
+    await ref.doc(experienceId).update(_currentExperience.toMap());
 
     if (mounted) Navigator.pop(context);
   }
@@ -192,7 +259,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         title: const Text("Confirm Delete"),
         content: const Text("Are you sure you want to delete this experience?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("No")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("No"),
+          ),
           TextButton(
             onPressed: () async {
               await FirebaseFirestore.instance
@@ -238,23 +308,28 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
   Future<void> _addSelectedCollaborators() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('User not logged in')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User not logged in')));
       return;
     }
 
     if (widget.experienceId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please save the experience first')));
+        const SnackBar(content: Text('Please save the experience first')),
+      );
       return;
     }
 
-    final experienceRef =
-        FirebaseFirestore.instance.collection('Experiences').doc(widget.experienceId!);
+    final experienceRef = FirebaseFirestore.instance
+        .collection('Experiences')
+        .doc(widget.experienceId!);
     final notifRef = FirebaseFirestore.instance.collection('Notifications');
 
     final doc = await experienceRef.get();
-    List<dynamic> existingCollabs = List.from(doc.data()?['collaborators'] ?? []);
+    List<dynamic> existingCollabs = List.from(
+      doc.data()?['collaborators'] ?? [],
+    );
 
     final batch = FirebaseFirestore.instance.batch();
 
@@ -266,7 +341,8 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
       if (currentUser.email?.toLowerCase() == email) continue;
 
       final alreadyExists = existingCollabs.any(
-          (c) => (c['email'] as String?)?.toLowerCase() == email);
+        (c) => (c['email'] as String?)?.toLowerCase() == email,
+      );
 
       if (alreadyExists) continue;
 
@@ -371,7 +447,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         return;
     }
 
-    result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => page),
+    );
 
     if (result != null) {
       final existingNames = booths
@@ -388,7 +467,8 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
         for (var item in result) {
           if (item is String) {
             final name = item.trim();
-            if (name.isNotEmpty && !existingNames.contains(name.toLowerCase())) {
+            if (name.isNotEmpty &&
+                !existingNames.contains(name.toLowerCase())) {
               _addBooth(device, contentName: name);
             }
           }
@@ -414,6 +494,36 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                 decoration: const InputDecoration(labelText: "Experience Name"),
               ),
               const SizedBox(height: 16),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey),
+                    image: DecorationImage(
+                      fit: BoxFit.cover,
+                      image: _selectedImage != null
+                          ? FileImage(_selectedImage!)
+                          : (_imageUrl != null
+                                ? NetworkImage(_imageUrl!)
+                                : const AssetImage('assets/placeholder.png')
+                                      as ImageProvider),
+                    ),
+                  ),
+                  child: _uploadingImage
+                      ? const Center(child: CircularProgressIndicator())
+                      : const Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Icon(Icons.camera_alt, color: Colors.white),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: category,
                 decoration: const InputDecoration(
@@ -421,15 +531,19 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                   border: OutlineInputBorder(),
                 ),
                 items: categories
-                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                    .map(
+                      (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                    )
                     .toList(),
                 onChanged: (value) => setState(() => category = value),
               ),
               const SizedBox(height: 24),
 
               if (editing) ...[
-                const Text("Add Collaborator",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  "Add Collaborator",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
@@ -441,8 +555,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Add collaborators to this event",
-                          style: TextStyle(fontSize: 14)),
+                      const Text(
+                        "Add collaborators to this event",
+                        style: TextStyle(fontSize: 14),
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _collabSearchController,
@@ -452,9 +568,12 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                         ),
                         onChanged: (value) {
                           _searchDebounce?.cancel();
-                          _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-                            _searchUsers(value.trim().toLowerCase());
-                          });
+                          _searchDebounce = Timer(
+                            const Duration(milliseconds: 300),
+                            () {
+                              _searchUsers(value.trim().toLowerCase());
+                            },
+                          );
                         },
                       ),
                       if (suggestionResults.isNotEmpty) ...[
@@ -467,18 +586,21 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                             itemBuilder: (context, idx) {
                               final s = suggestionResults[idx];
                               final email = s['email'] ?? '';
-                              final selected = selectedSuggestions
-                                  .any((e) => e['email'] == email);
+                              final selected = selectedSuggestions.any(
+                                (e) => e['email'] == email,
+                              );
                               return ListTile(
-                                tileColor:
-                                    selected ? Colors.green.shade50 : null,
+                                tileColor: selected
+                                    ? Colors.green.shade50
+                                    : null,
                                 title: Text(email),
-                                subtitle:
-                                    const Text("Invite as collaborator"),
+                                subtitle: const Text("Invite as collaborator"),
                                 onTap: () => _toggleSelectSuggestion(s),
                                 trailing: selected
-                                    ? const Icon(Icons.check_circle,
-                                        color: Colors.green)
+                                    ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      )
                                     : null,
                               );
                             },
@@ -511,27 +633,37 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Collaborators',
-                          style:
-                              TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Collaborators',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       collaborators.isEmpty
-                          ? const Text('No collaborators yet.',
-                              style: TextStyle(color: Colors.grey))
+                          ? const Text(
+                              'No collaborators yet.',
+                              style: TextStyle(color: Colors.grey),
+                            )
                           : Column(
                               children: collaborators.map((c) {
                                 final status = c['status'] ?? 'pending';
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
-                                    leading: Icon(Icons.person,
-                                        color: status == 'accepted'
-                                            ? Colors.green
-                                            : Colors.orange),
+                                    leading: Icon(
+                                      Icons.person,
+                                      color: status == 'accepted'
+                                          ? Colors.green
+                                          : Colors.orange,
+                                    ),
                                     title: Text(c['email'] ?? ''),
-                                    subtitle: Text(status == 'pending'
-                                        ? 'Pending invite'
-                                        : 'Collaborator'),
+                                    subtitle: Text(
+                                      status == 'pending'
+                                          ? 'Pending invite'
+                                          : 'Collaborator',
+                                    ),
                                   ),
                                 );
                               }).toList(),
@@ -542,8 +674,10 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                 const SizedBox(height: 24),
               ],
 
-              const Text("Booths",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                "Booths",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 300,
@@ -562,20 +696,33 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              leading: const Icon(Icons.device_hub,
-                                  color: Color.fromRGBO(143, 148, 251, 1)),
-                              title: Text(booth["device"],
-                                  style:
-                                      const TextStyle(fontWeight: FontWeight.bold)),
+                              leading: const Icon(
+                                Icons.device_hub,
+                                color: Color.fromRGBO(143, 148, 251, 1),
+                              ),
+                              title: Text(
+                                booth["device"],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               subtitle: booth["contentName"] != null
-                                  ? Text("Content: ${booth["contentName"]}",
-                                      style: const TextStyle(fontSize: 12))
-                                  : const Text("No specific content",
+                                  ? Text(
+                                      "Content: ${booth["contentName"]}",
+                                      style: const TextStyle(fontSize: 12),
+                                    )
+                                  : const Text(
+                                      "No specific content",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          fontStyle: FontStyle.italic)),
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
                                 onPressed: () => _removeBooth(index),
                               ),
                             ),
@@ -594,18 +741,24 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Add Booth",
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w500)),
+                    const Text(
+                      "Add Booth",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: devices
-                          .map((device) => ElevatedButton(
-                                onPressed: () => _navigateToContentPage(device),
-                                child: Text(device),
-                              ))
+                          .map(
+                            (device) => ElevatedButton(
+                              onPressed: () => _navigateToContentPage(device),
+                              child: Text(device),
+                            ),
+                          )
                           .toList(),
                     ),
                   ],
@@ -619,10 +772,14 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
                       onPressed: _deleteExperience,
-                      child: const Text("Delete",
-                          style: TextStyle(color: Colors.white)),
+                      child: const Text(
+                        "Delete",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
