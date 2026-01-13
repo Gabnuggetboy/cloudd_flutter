@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
-// import 'package:cloudd_flutter/services/web_scraper_service.dart';
-// import 'package:cloudd_flutter/services/webview_scraper_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
 import 'package:cloudd_flutter/user/category_experiences_page.dart';
@@ -21,45 +19,27 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // List<GameData> _recommendedGames = [];
-  bool _isRefreshing = false;
-  // bool _showWebView = false;
-
-  List<QueryDocumentSnapshot> _recommendedExperiences = [];
+  List<Experience> _recommendedExperiences = [];
   bool _recommendedLoading = true;
 
-  List<QueryDocumentSnapshot> _popularExperiences = [];
+  List<Experience> _popularExperiences = [];
   bool _popularLoading = true;
 
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  // final TextEditingController _searchController = TextEditingController();
+  // String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _loadGames();
     _loadRecommendedExperiences();
     _loadMostPopularExperiences();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _loadGames() {
-    setState(() {
-      // _showWebView = true;
-    });
-  }
-
-  void _refreshGames() {
-    setState(() {
-      _isRefreshing = true;
-      // _showWebView = true;
-    });
-  }
+  // @override
+  // void dispose() {
+  //   _searchController.dispose();
+  //   super.dispose();
+  // }
 
   Future<void> _loadRecommendedExperiences() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -122,12 +102,15 @@ class _HomePageState extends State<HomePage> {
         .where('enabled', isEqualTo: true)
         .get();
 
-    final shuffled =
-        recSnap.docs.where((doc) => !experienceIds.contains(doc.id)).toList()
+    final filteredExperiences =
+        recSnap.docs
+            .where((doc) => !experienceIds.contains(doc.id))
+            .map((doc) => Experience.fromDoc(doc))
+            .toList()
           ..shuffle(Random());
 
     setState(() {
-      _recommendedExperiences = shuffled.take(6).toList();
+      _recommendedExperiences = filteredExperiences.take(6).toList();
       _recommendedLoading = false;
     });
   }
@@ -168,8 +151,12 @@ class _HomePageState extends State<HomePage> {
         .where('enabled', isEqualTo: true)
         .get();
 
+    final experiences = expSnap.docs
+        .map((doc) => Experience.fromDoc(doc))
+        .toList();
+
     setState(() {
-      _popularExperiences = expSnap.docs;
+      _popularExperiences = experiences;
       _popularLoading = false;
     });
   }
@@ -210,99 +197,99 @@ class _HomePageState extends State<HomePage> {
 
                   const SizedBox(height: 20),
 
-                  /// Search Bar
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor,
-                        width: 1.3,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, size: 22),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onChanged: (value) {
-                              setState(() {
-                                _searchQuery = value.trim();
-                              });
-                            },
-                            decoration: const InputDecoration(
-                              hintText: "Search for Experience...",
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // /// Search Bar
+                  // Container(
+                  //   padding: const EdgeInsets.symmetric(horizontal: 15),
+                  //   decoration: BoxDecoration(
+                  //     border: Border.all(
+                  //       color: Theme.of(context).dividerColor,
+                  //       width: 1.3,
+                  //     ),
+                  //     borderRadius: BorderRadius.circular(10),
+                  //   ),
+                  //   child: Row(
+                  //     children: [
+                  //       const Icon(Icons.search, size: 22),
+                  //       const SizedBox(width: 10),
+                  //       Expanded(
+                  //         child: TextField(
+                  //           controller: _searchController,
+                  //           onChanged: (value) {
+                  //             setState(() {
+                  //               _searchQuery = value.trim();
+                  //             });
+                  //           },
+                  //           decoration: const InputDecoration(
+                  //             hintText: "Search for Experience...",
+                  //             border: InputBorder.none,
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
 
                   /// Search Results
-                  if (_searchQuery.isNotEmpty) ...[
-                    const SizedBox(height: 15),
-                    SizedBox(
-                      height: 200,
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('Experiences')
-                            .where('enabled', isEqualTo: true)
-                            .where('name', isGreaterThanOrEqualTo: _searchQuery)
-                            .where('name', isLessThan: _searchQuery + '\uf8ff')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
+                  // if (_searchQuery.isNotEmpty) ...[
+                  //   const SizedBox(height: 15),
+                  //   SizedBox(
+                  //     height: 200,
+                  //     child: StreamBuilder<QuerySnapshot>(
+                  //       stream: FirebaseFirestore.instance
+                  //           .collection('Experiences')
+                  //           .where('enabled', isEqualTo: true)
+                  //           .where('name', isGreaterThanOrEqualTo: _searchQuery)
+                  //           .where('name', isLessThan: _searchQuery + '\uf8ff')
+                  //           .snapshots(),
+                  //       builder: (context, snapshot) {
+                  //         if (!snapshot.hasData) {
+                  //           return const Center(
+                  //             child: CircularProgressIndicator(),
+                  //           );
+                  //         }
 
-                          final docs = snapshot.data!.docs;
+                  //         final docs = snapshot.data!.docs;
 
-                          if (docs.isEmpty) {
-                            return const Center(
-                              child: Text('No matching experiences'),
-                            );
-                          }
+                  //         if (docs.isEmpty) {
+                  //           return const Center(
+                  //             child: Text('No matching experiences'),
+                  //           );
+                  //         }
 
-                          return ListView.builder(
-                            itemCount: docs.length,
-                            itemBuilder: (context, index) {
-                              final doc = docs[index];
-                              final data = doc.data() as Map<String, dynamic>;
+                  //         final experiences = docs
+                  //             .map((doc) => Experience.fromDoc(doc))
+                  //             .toList();
 
-                              final name = data['name'] ?? 'Untitled';
-                              final booths = (data['booths'] as List?) ?? [];
+                  //         return ListView.builder(
+                  //           itemCount: experiences.length,
+                  //           itemBuilder: (context, index) {
+                  //             final experience = experiences[index];
 
-                              return ListTile(
-                                title: Text(name),
-                                subtitle: Text(
-                                  '${booths.length} booth${booths.length == 1 ? '' : 's'}',
-                                ),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ExploreExperiencePage(
-                                        experienceId: doc.id,
-                                        experienceName: name,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                  //             return ListTile(
+                  //               title: Text(experience.name),
+                  //               subtitle: Text(
+                  //                 '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
+                  //               ),
+                  //               onTap: () {
+                  //                 Navigator.push(
+                  //                   context,
+                  //                   MaterialPageRoute(
+                  //                     builder: (_) => ExploreExperiencePage(
+                  //                       experienceId: experience.id,
+                  //                       experienceName: experience.name,
+                  //                     ),
+                  //                   ),
+                  //                 );
+                  //               },
+                  //             );
+                  //           },
+                  //         );
+                  //       },
+                  //     ),
+                  //   ),
+                  // ],
 
-                  const SizedBox(height: 25),
+                  // const SizedBox(height: 25),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: const [
@@ -337,15 +324,15 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        // Extract unique categories
-                        final categories = snapshot.data!.docs
-                            .map(
-                              (doc) =>
-                                  (doc.data()
-                                      as Map<String, dynamic>)['category'],
-                            )
-                            .where((c) => c != null && c.toString().isNotEmpty)
-                            .map((c) => c.toString())
+                        // Extract unique categories using Experience model
+                        final experiences = snapshot.data!.docs
+                            .map((doc) => Experience.fromDoc(doc))
+                            .toList();
+
+                        final categories = experiences
+                            .map((exp) => exp.category)
+                            .where((c) => c != null && c.isNotEmpty)
+                            .cast<String>()
                             .toSet()
                             .toList();
 
@@ -447,12 +434,7 @@ class _HomePageState extends State<HomePage> {
                             scrollDirection: Axis.horizontal,
                             itemCount: _recommendedExperiences.length,
                             itemBuilder: (context, index) {
-                              final doc = _recommendedExperiences[index];
-                              final data = doc.data() as Map<String, dynamic>;
-
-                              final name = data['name'] ?? 'Untitled';
-                              final booths = (data['booths'] as List?) ?? [];
-                              final imageUrl = data['imageUrl'];
+                              final experience = _recommendedExperiences[index];
 
                               return GestureDetector(
                                 onTap: () {
@@ -460,8 +442,8 @@ class _HomePageState extends State<HomePage> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => ExploreExperiencePage(
-                                        experienceId: doc.id,
-                                        experienceName: name,
+                                        experienceId: experience.id,
+                                        experienceName: experience.name,
                                       ),
                                     ),
                                   );
@@ -486,9 +468,9 @@ class _HomePageState extends State<HomePage> {
                                               const BorderRadius.vertical(
                                                 top: Radius.circular(12),
                                               ),
-                                          child: imageUrl != null
+                                          child: experience.imageUrl != null
                                               ? Image.network(
-                                                  imageUrl,
+                                                  experience.imageUrl!,
                                                   width: double.infinity,
                                                   fit: BoxFit.cover,
                                                 )
@@ -510,7 +492,7 @@ class _HomePageState extends State<HomePage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              name,
+                                              experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
@@ -520,7 +502,7 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              '${booths.length} booth${booths.length == 1 ? '' : 's'}',
+                                              '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
                                               style: const TextStyle(
                                                 fontSize: 12,
                                               ),
@@ -579,12 +561,7 @@ class _HomePageState extends State<HomePage> {
                             scrollDirection: Axis.horizontal,
                             itemCount: _popularExperiences.length,
                             itemBuilder: (context, index) {
-                              final doc = _popularExperiences[index];
-                              final data = doc.data() as Map<String, dynamic>;
-
-                              final name = data['name'] ?? 'Untitled';
-                              final booths = (data['booths'] as List?) ?? [];
-                              final imageUrl = data['imageUrl'];
+                              final experience = _popularExperiences[index];
 
                               return GestureDetector(
                                 onTap: () {
@@ -592,8 +569,8 @@ class _HomePageState extends State<HomePage> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => ExploreExperiencePage(
-                                        experienceId: doc.id,
-                                        experienceName: name,
+                                        experienceId: experience.id,
+                                        experienceName: experience.name,
                                       ),
                                     ),
                                   );
@@ -618,9 +595,9 @@ class _HomePageState extends State<HomePage> {
                                               const BorderRadius.vertical(
                                                 top: Radius.circular(12),
                                               ),
-                                          child: imageUrl != null
+                                          child: experience.imageUrl != null
                                               ? Image.network(
-                                                  imageUrl,
+                                                  experience.imageUrl!,
                                                   width: double.infinity,
                                                   fit: BoxFit.cover,
                                                 )
@@ -642,7 +619,7 @@ class _HomePageState extends State<HomePage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              name,
+                                              experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
@@ -652,7 +629,7 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              '${booths.length} booth${booths.length == 1 ? '' : 's'}',
+                                              '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
                                               style: const TextStyle(
                                                 fontSize: 12,
                                               ),
@@ -676,41 +653,230 @@ class _HomePageState extends State<HomePage> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 10),
 
-                  // Recently Played Row
+                  // Recently Played Row (from Firestore per user)
                   SizedBox(
-                    height: 140,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: MediaQuery.of(context).size.width * 0.42,
-                          margin: EdgeInsets.only(
-                            right: 15,
-                            left: index == 0 ? 0 : 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD8CFCF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/images/recently_played_${index + 1}.png',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Center(
-                                  child: Icon(
-                                    Icons.image,
-                                    size: 50,
-                                    color: Colors.grey,
+                    height: 200,
+                    child: StreamBuilder<List<RecentlyPlayed>>(
+                      stream: RecentlyPlayedService.streamCurrentUserRecent(),
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          return Center(child: Text('Error: ${snap.error}'));
+                        }
+                        if (!snap.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
+                        final items = snap.data!;
+                        if (items.isEmpty) {
+                          return const Center(
+                            child: Text('No recently played content'),
+                          );
+                        }
+
+                        // Fetch device contents once so we can try to find logos
+                        return FutureBuilder<Map<String, DeviceContentResult>>(
+                          future: DeviceLoadingService.fetchAllDeviceContents(),
+                          builder: (context, deviceSnap) {
+                            final deviceMap = deviceSnap.data;
+
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: items.length,
+                              padding: EdgeInsets.zero,
+                              itemBuilder: (context, index) {
+                                final rp = items[index];
+
+                                String? logoUrl =
+                                    (rp.logoUrl != null &&
+                                        rp.logoUrl!.isNotEmpty)
+                                    ? rp.logoUrl
+                                    : null;
+
+                                // Fallback: try to find a logo/url from the device contents
+                                if (logoUrl == null && deviceMap != null) {
+                                  final dev = deviceMap[rp.device];
+                                  if (dev != null) {
+                                    for (final c in dev.contents) {
+                                      if (c is Map<String, dynamic>) {
+                                        final name =
+                                            (c['name'] ?? c['title'] ?? '')
+                                                as String;
+                                        if (name.isNotEmpty &&
+                                            name.toLowerCase() ==
+                                                rp.boothName.toLowerCase()) {
+                                          logoUrl =
+                                              (c['logo'] ??
+                                                      c['thumbnail'] ??
+                                                      c['image'])
+                                                  as String?;
+                                          break;
+                                        }
+                                      } else if (c is String) {
+                                        if (c.toLowerCase() ==
+                                            rp.boothName.toLowerCase()) {
+                                          // no metadata available
+                                          logoUrl = null;
+                                          break;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+
+                                final baseUrl = DeviceLoadingService.getBaseUrl(
+                                  rp.device,
+                                );
+                                final displayUrl =
+                                    (logoUrl != null && logoUrl.isNotEmpty)
+                                    ? (logoUrl.startsWith('http')
+                                          ? logoUrl
+                                          : '$baseUrl$logoUrl')
+                                    : null;
+
+                                return Container(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.42,
+                                  margin: const EdgeInsets.only(right: 10),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      SizedBox(
+                                        height: 100,
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                                top: Radius.circular(12),
+                                              ),
+                                          child: displayUrl != null
+                                              ? Image.network(
+                                                  displayUrl,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder:
+                                                      (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) => Container(
+                                                        color: const Color(
+                                                          0xFFEFEFEF,
+                                                        ),
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons.image,
+                                                            size: 40,
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  loadingBuilder:
+                                                      (context, child, prog) {
+                                                        if (prog == null) {
+                                                          return child;
+                                                        }
+                                                        return const Center(
+                                                          child:
+                                                              CircularProgressIndicator(),
+                                                        );
+                                                      },
+                                                )
+                                              : Container(
+                                                  color: const Color(
+                                                    0xFFEFEFEF,
+                                                  ),
+                                                  child: const Center(
+                                                    child: Icon(
+                                                      Icons.videogame_asset,
+                                                      size: 44,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(10),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              rp.boothName,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              rp.device,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              rp.experienceName,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            // show playtime if it exists
+                                            Builder(
+                                              builder: (context) {
+                                                final int secs =
+                                                    rp.playtimeSeconds;
+                                                if (secs <= 0) {
+                                                  return const SizedBox();
+                                                }
+                                                final mins = rp.playtimeMinutes;
+                                                final remainder = secs % 60;
+                                                final playtimeText = mins > 0
+                                                    ? '${mins}m ${remainder}s'
+                                                    : '${remainder}s';
+                                                return Text(
+                                                  'Playtime: $playtimeText',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
-                            ),
-                          ),
+                            );
+                          },
                         );
                       },
                     ),
