@@ -3,6 +3,7 @@ import 'package:animate_do/animate_do.dart';
 import 'signup_page.dart';
 import 'user/home_page.dart';
 import 'manager/manager_account_page.dart';
+import 'forgot_password_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
@@ -34,9 +35,6 @@ class _LoginPageState extends State<LoginPage> {
   bool get _isFormFilled =>
       _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
 
-  // ---------------------------------------
-  // LOGIN FUNCTION
-  // ---------------------------------------
   Future<void> loginUser() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
@@ -435,10 +433,21 @@ class _LoginPageState extends State<LoginPage> {
                       duration: Duration(milliseconds: 2000),
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 100.0),
-                        child: Text(
-                          "Forgot Password?",
-                          style: TextStyle(
-                            color: Color.fromRGBO(143, 148, 251, 1),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ForgotPasswordPage(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "Forgot Password?",
+                            style: TextStyle(
+                              color: Color.fromRGBO(143, 148, 251, 1),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
