@@ -7,7 +7,7 @@ import 'package:cloudd_flutter/webapp_access_page.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/services/recently_played_service.dart';
 import 'package:cloudd_flutter/models/experience.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloudd_flutter/user/queueing_page.dart';
 
 class ExploreExperiencePage extends StatefulWidget {
   final String experienceId;
@@ -39,37 +39,43 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   Map<String, String?> runningContent = {};
   final Map<String, DateTime?> runningStart = {};
   final Map<String, String?> runningRecentDocId = {};
+  final Map<String, DateTime?> _lastStateUpdateTime = {};
+  static const Duration _pollDebounce = Duration(milliseconds: 1000);
 
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
 
-  final Map<String, String> deviceKeywords = {
-    'iCube': 'icube',
-    'iCreate': 'icreate',
-    'iRig': 'irig',
-    'Storytime': 'storytime',
-  };
+  final List<String> devices = ['iCube', 'iRig', 'iCreate', 'Storytime'];
+  String? _selectedDevice;
 
   String? _currentDeviceIP;
+  final Map<String, String?> _queuedContentByDevice = {};
+  final Map<String, bool> _isAutoLaunchActiveByDevice = {};
+  bool _isRunningStatusPolling = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedDevice = devices.first; // Select first device by default
+    // Initialize queue tracking for all devices
+    for (final device in devices) {
+      _queuedContentByDevice[device] = null;
+      _isAutoLaunchActiveByDevice[device] = false;
+    }
     _loadAllData();
     _getCurrentDeviceIP();
+    _startRunningStatusPolling();
   }
 
   Future<void> _getCurrentDeviceIP() async {
     try {
-      // Get IP from any device endpoint, they should all see the same client IP
-      final result = await DeviceLoadingService.checkLaunchedClientIP('iCube');
+      // Call the dedicated /client_ip endpoint to establish our device's identity
+      final result = await DeviceLoadingService.getClientIP('iCube');
       if (result.error == null && result.clientIP != null) {
-        // If there's a running content, we got the IP from that
         setState(() {
           _currentDeviceIP = result.clientIP;
         });
       }
-      // If no content is running then get the IP when we first launch something
     } catch (e) {
       debugPrint('Error getting device IP: $e');
     }
@@ -78,10 +84,132 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   @override
   void dispose() {
     searchController.dispose();
+    // Stop all auto-launch monitors
+    for (final device in devices) {
+      _isAutoLaunchActiveByDevice[device] = false;
+    }
+    _isRunningStatusPolling = false;
     super.dispose();
   }
 
-    Stream<QuerySnapshot> signupStream() {
+  void _startRunningStatusPolling() {
+    if (_isRunningStatusPolling) return;
+    _isRunningStatusPolling = true;
+    _pollRunningStatus();
+  }
+
+  Future<void> _pollRunningStatus() async {
+    while (_isRunningStatusPolling && mounted) {
+      try {
+        final Map<String, String?> latestRunning = {};
+
+        // Fetch statuses in parallel for faster UI updates
+        await Future.wait(
+          devices.map((device) async {
+            final status = await DeviceLoadingService.checkLaunchedClientIP(
+              device,
+            );
+
+            // Only track content started from this client; ignore others
+            if (_currentDeviceIP != null &&
+                status.clientIP != null &&
+                status.clientIP != _currentDeviceIP) {
+              latestRunning[device] = null;
+            } else if (status.status == 'content_running') {
+              latestRunning[device] = status.runningContent;
+            } else {
+              latestRunning[device] = null;
+            }
+          }),
+        );
+
+        if (mounted && _isRunningStatusPolling) {
+          setState(() {
+            for (final entry in latestRunning.entries) {
+              // Skip updating if we recently made a local state change to this device
+              // to prevent flashing/flickering from rapid polling updates
+              final lastUpdate = _lastStateUpdateTime[entry.key];
+              if (lastUpdate != null &&
+                  DateTime.now().difference(lastUpdate) < _pollDebounce) {
+                continue;
+              }
+              runningContent[entry.key] = entry.value;
+            }
+          });
+        }
+
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        debugPrint('Error polling running status: $e');
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+  }
+
+  void _startAutoLaunchMonitor(String device, String contentName) {
+    _queuedContentByDevice[device] = contentName;
+    _isAutoLaunchActiveByDevice[device] = true;
+    _checkAndLaunchWhenTurn(device);
+  }
+
+  void _checkAndLaunchWhenTurn(String device) {
+    if (_isAutoLaunchActiveByDevice[device] != true ||
+        _queuedContentByDevice[device] == null) {
+      return;
+    }
+
+    Future.delayed(const Duration(seconds: 2), () async {
+      if (!mounted || _isAutoLaunchActiveByDevice[device] != true) return;
+
+      try {
+        final positionResult = await DeviceLoadingService.getQueuePosition(
+          device,
+        );
+
+        if (!mounted || _isAutoLaunchActiveByDevice[device] != true) return;
+
+        if (positionResult.queuePosition == 0) {
+          // User's turn! Auto-launch the content
+          _isAutoLaunchActiveByDevice[device] = false;
+          await launchContent(device, _queuedContentByDevice[device]!);
+          // Don't clear the queued content here, let the user manually dequeue after
+        } else {
+          // Not yet user's turn, check again soon
+          _checkAndLaunchWhenTurn(device);
+        }
+      } catch (e) {
+        debugPrint('Error checking queue position: $e');
+        if (_isAutoLaunchActiveByDevice[device] == true && mounted) {
+          // Retry on error
+          _checkAndLaunchWhenTurn(device);
+        }
+      }
+    });
+  }
+
+  Future<void> _refreshQueueState() async {
+    // Check queue positions for all devices and clear stale entries
+    for (final device in devices) {
+      if (_queuedContentByDevice[device] != null) {
+        try {
+          final positionResult = await DeviceLoadingService.getQueuePosition(
+            device,
+          );
+          // If not in queue anymore (position -1), clear the queued content
+          if (positionResult.queuePosition == -1) {
+            setState(() {
+              _queuedContentByDevice[device] = null;
+              _isAutoLaunchActiveByDevice[device] = false;
+            });
+          }
+        } catch (e) {
+          debugPrint('Error checking queue position for $device: $e');
+        }
+      }
+    }
+  }
+
+  Stream<QuerySnapshot> signupStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Stream.empty();
@@ -99,15 +227,13 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    await FirebaseFirestore.instance
-        .collection('experience_signups')
-        .add({
-          'experienceId': widget.experienceId,
-          'experienceName': widget.experienceName,
-          'userId': user.uid,
-          'userEmail': user.email,
-          'signedAt': Timestamp.now(),
-        });
+    await FirebaseFirestore.instance.collection('experience_signups').add({
+      'experienceId': widget.experienceId,
+      'experienceName': widget.experienceName,
+      'userId': user.uid,
+      'userEmail': user.email,
+      'signedAt': Timestamp.now(),
+    });
   }
 
   Future<void> cancelSignUp(String docId) async {
@@ -207,12 +333,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     }
   }
 
-  // Logic of launchContent simplified: 
+  // Logic of launchContent simplified:
   // First checks if there is any content running on the device
   // If there is content running and the client IP matches the user's device IP, then when the user presses play
   // for another content in same device, it will stop the previous content and launch the new one
 
-  // but if there is content running and the client IP does NOT match the user's device IP, 
+  // but if there is content running and the client IP does NOT match the user's device IP,
   // then it shows the "Device in Use" pop up and doesnt launch the content
 
   Future<void> launchContent(
@@ -221,33 +347,80 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     String? boothName,
     String? logoUrl,
   }) async {
+    // First, establish our device IP if we don't have it yet
+    // This ensures we know what IP we're launching from before checking device status
+    if (_currentDeviceIP == null) {
+      // Make a dummy call to the server to establish our IP
+      try {
+        await DeviceLoadingService.checkLaunchedClientIP(device);
+        // After this call, the server knows our IP, even if no content is running
+        // We'll get our actual IP confirmed after the first successful launch
+      } catch (e) {
+        debugPrint('Error establishing device IP: $e');
+      }
+    }
+
     // Check the device's client IP status
     final clientIPResult = await DeviceLoadingService.checkLaunchedClientIP(
       device,
     );
 
-    // If there's content running, check if it's from another client
+    // If there's content running, check if its from another client
     if (clientIPResult.status == 'content_running' &&
         clientIPResult.clientIP != null) {
-      // Store the client device IP if we don't have it yet
-      if (_currentDeviceIP == null && clientIPResult.clientIP != null) {
+      // If we still don't have our own IP, establish it now by comparing
+      if (_currentDeviceIP == null) {
         _currentDeviceIP = clientIPResult.clientIP;
       }
 
-      // Check if someone else is using the device
-      // We compare IPs only if we have our own IP established
-      if (_currentDeviceIP != null &&
-          clientIPResult.clientIP != _currentDeviceIP) {
+      // Check if someone else is using the device by comparing IPs
+      if (clientIPResult.clientIP != _currentDeviceIP) {
         if (!mounted) return;
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text('$device In Use'),
-            content: const Text('Somebody else is using this device'),
+            content: Text('Somebody else is using $device'),
+            actionsAlignment: MainAxisAlignment.spaceBetween,
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('OK'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                onPressed: () async {
+                  // Enqueue to the Flask API
+                  try {
+                    final result = await DeviceLoadingService.enqueueDevice(
+                      device,
+                    );
+                    if (result.success) {
+                      // Start monitoring for when it's user's turn
+                      _startAutoLaunchMonitor(device, contentName);
+                    }
+                  } catch (e) {
+                    debugPrint('Error enqueuing: $e');
+                  }
+
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => QueueingPage(
+                        device: device,
+                        contentName: contentName,
+                        queuedContentMap: Map<String, String?>.from(
+                          _queuedContentByDevice,
+                        ),
+                      ),
+                    ),
+                  );
+                  // Refresh queue state after returning
+                  await _refreshQueueState();
+                },
+                child: const Text('Add to queue'),
               ),
             ],
           ),
@@ -255,7 +428,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         return;
       }
 
-      // If we're here, either it's our content running or IPs match
+      // If we're here it means own content running
       // Stop the current content before launching new one
       if (clientIPResult.runningContent != null &&
           clientIPResult.runningContent != contentName) {
@@ -276,9 +449,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     if (!mounted) return;
 
     if (result.success) {
-      setState(() => runningContent[device] = contentName);
+      setState(() {
+        runningContent[device] = contentName;
+        _lastStateUpdateTime[device] = DateTime.now();
+      });
 
-      // Update our device IP after successful launch
+      // Update our device IP after successful launch - this confirms our actual IP
       if (_currentDeviceIP == null) {
         _getCurrentDeviceIP();
       }
@@ -337,8 +513,14 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
 
     setState(() {
       runningContent[device] = null;
+      _lastStateUpdateTime[device] = DateTime.now();
       runningStart.remove(device);
       runningRecentDocId.remove(device);
+      // If the stopped content was queued, clear it from queue tracking
+      if (_queuedContentByDevice[device] == contentName) {
+        _queuedContentByDevice[device] = null;
+        _isAutoLaunchActiveByDevice[device] = false;
+      }
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -402,6 +584,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
 
     final title = contentName ?? device;
     final isRunning = runningContent[device] == contentName;
+    final isQueued = _queuedContentByDevice[device] == contentName;
 
     final buttonSize = const Size(110, 40);
     const stopIconSize = 20.0;
@@ -472,6 +655,32 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                     style: ElevatedButton.styleFrom(
                       minimumSize: buttonSize,
                       backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                else if (isQueued)
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => QueueingPage(
+                            device: device,
+                            contentName: contentName,
+                          ),
+                        ),
+                      );
+                      // Refresh queue state after returning
+                      await _refreshQueueState();
+                    },
+                    icon: const Icon(Icons.queue, size: stopIconSize),
+                    label: const Text(
+                      'In Queue',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: buttonSize,
+                      backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
                     ),
                   )
@@ -580,6 +789,30 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         final hasRunning = runningContent.values.any(
           (v) => v != null && v.isNotEmpty,
         );
+        final hasQueued = _queuedContentByDevice.values.any(
+          (v) => v != null && v.isNotEmpty,
+        );
+
+        // Check if user is in a queue
+        if (hasQueued) {
+          await showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('In Queue'),
+              content: const Text(
+                'You are currently in a queue. Please remove yourself from the queue before exiting.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+          return false;
+        }
+
         if (!hasRunning) return true;
 
         final stopAll = await showDialog<bool>(
@@ -614,61 +847,86 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         return false;
       },
       child: Scaffold(
-        appBar: AppBar(title: Text('Explore: $displayName')),
-         bottomNavigationBar: SafeArea(
-  child: Padding(
-    padding: const EdgeInsets.all(16),
-    child: StreamBuilder<QuerySnapshot>(
-      stream: signupStream(),
-      builder: (context, snapshot) {
-        final isSignedUp =
-            snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-
-        final signupDocId =
-            isSignedUp ? snapshot.data!.docs.first.id : null;
-
-        return SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: () async {
-              if (isSignedUp) {
-                await cancelSignUp(signupDocId!);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Signup cancelled'),
+        appBar: AppBar(
+          title: Text('Explore: $displayName'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                // Pass all queued content to QueueingPage
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => QueueingPage(
+                      queuedContentMap: Map<String, String?>.from(
+                        _queuedContentByDevice,
+                      ),
+                    ),
                   ),
                 );
-              } else {
-                await signUp();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Successfully signed up'),
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isSignedUp ? Colors.red : const Color.fromRGBO(143, 148, 251, 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                // Refresh queue state after returning
+                await _refreshQueueState();
+              },
+              child: const Text(
+                'View queue',
+                style: TextStyle(color: Colors.white),
               ),
             ),
-            child: Text(
-              isSignedUp ? 'Cancel Sign Up' : 'Sign Up for Experience',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: signupStream(),
+              builder: (context, snapshot) {
+                final isSignedUp =
+                    snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+                final signupDocId = isSignedUp
+                    ? snapshot.data!.docs.first.id
+                    : null;
+
+                return SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (isSignedUp) {
+                        await cancelSignUp(signupDocId!);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Signup cancelled')),
+                        );
+                      } else {
+                        await signUp();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Successfully signed up'),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isSignedUp
+                          ? Colors.red
+                          : const Color.fromRGBO(143, 148, 251, 1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      isSignedUp ? 'Cancel Sign Up' : 'Sign Up for Experience',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-        );
-      },
-    ),
-  ),
-),
+        ),
 
         body: RefreshIndicator(
           onRefresh: _loadAllData,
@@ -697,34 +955,100 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                   ),
                   onChanged: (v) => setState(() => searchQuery = v),
                 ),
+                const SizedBox(height: 5),
+                // Device icons horizontally
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 0.0),
+                      child: Row(
+                        children: devices.map((device) {
+                          final isSelected = _selectedDevice == device;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 12.0),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedDevice = device;
+                                });
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: isSelected
+                                      ? Border.all(
+                                          color: const Color.fromARGB(
+                                            255,
+                                            168,
+                                            171,
+                                            228,
+                                          ),
+                                          width: 3,
+                                        )
+                                      : null,
+                                  // color: isSelected
+                                  //     ? Colors.transparent
+                                  //     : Colors.transparent,
+                                ),
+                                padding: const EdgeInsets.all(4),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.network(
+                                    DeviceLoadingService.deviceLogos[device]!,
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        width: 64,
+                                        height: 64,
+                                        color: Colors.grey[300],
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.vrpano,
+                                            size: 32,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                const Text(
-                  'iCube',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                _buildSection('iCube', 'iCube', 'icube'),
-                const SizedBox(height: 24),
-                const Text(
-                  'iCreate',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                _buildSection('iCreate', 'iCreate', 'icreate'),
-                const SizedBox(height: 24),
-                const Text(
-                  'iRig',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                _buildSection('iRig', 'iRig', 'irig'),
-                const SizedBox(height: 24),
-                const Text(
-                  'Storytime',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                _buildSection('Storytime', 'Storytime', 'storytime'),
+                if (_selectedDevice == null)
+                  const Center(
+                    child: Text(
+                      'Select a device to view contents',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                else ...[
+                  _buildSection(
+                    '${_selectedDevice!} Contents',
+                    _selectedDevice!,
+                    _selectedDevice == 'iCube'
+                        ? 'icube'
+                        : _selectedDevice == 'iCreate'
+                        ? 'icreate'
+                        : _selectedDevice == 'iRig'
+                        ? 'irig'
+                        : 'storytime',
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
             ),

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
+import 'package:cloudd_flutter/services/experience_service.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -12,6 +13,7 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  final _service = ExperienceService();
   Stream<QuerySnapshot<Map<String, dynamic>>>? _notifByUid;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _notifByEmail;
 
@@ -40,37 +42,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final data = notifDoc.data();
     if (data == null) return;
     final expId = data['experienceId'] as String?;
-    final userEmail = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
-    if (expId == null || userEmail == null) return;
+    if (expId == null) return;
 
-    final expRef = FirebaseFirestore.instance
-        .collection('Experiences')
-        .doc(expId);
-    final expSnap = await expRef.get();
-    final expData = expSnap.data();
-    final collaborators =
-        (expData?['collaborators'] as List?)
-            ?.map((c) => Map<String, dynamic>.from(c as Map))
-            .toList() ??
-        [];
-
-    bool updated = false;
-    for (final c in collaborators) {
-      final cEmail = (c['email'] as String?)?.toLowerCase();
-      final cUid = c['uid'] as String?;
-      if ((cEmail == userEmail || (userUid != null && cUid == userUid)) &&
-          c['status'] == 'pending') {
-        c['status'] = 'accepted';
-        updated = true;
+    try {
+      await _service.acceptCollaboratorInvite(expId);
+      await notifDoc.reference.delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invitation accepted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to accept: $e')),
+        );
       }
     }
-
-    if (updated) {
-      await expRef.update({'collaborators': collaborators});
-    }
-    // to remove notif after accepting invite
-    await notifDoc.reference.delete();
   }
 
   Future<void> _declineInvite(
@@ -79,31 +67,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final data = notifDoc.data();
     if (data == null) return;
     final expId = data['experienceId'] as String?;
-    final userEmail = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
-    if (expId == null || userEmail == null) return;
+    if (expId == null) return;
 
-    final expRef = FirebaseFirestore.instance
-        .collection('Experiences')
-        .doc(expId);
-    final expSnap = await expRef.get();
-    final expData = expSnap.data();
-    final collaborators =
-        (expData?['collaborators'] as List?)
-            ?.map((c) => Map<String, dynamic>.from(c as Map))
-            .toList() ??
-        [];
-
-    collaborators.removeWhere((c) {
-      final cEmail = (c['email'] as String?)?.toLowerCase();
-      final cUid = c['uid'] as String?;
-      return (cEmail == userEmail || (userUid != null && cUid == userUid)) &&
-          c['status'] == 'pending';
-    });
-
-    await expRef.update({'collaborators': collaborators});
-    // to remove notif after declining invite
-    await notifDoc.reference.delete();
+    try {
+      await _service.declineCollaboratorInvite(expId);
+      await notifDoc.reference.delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invitation declined')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to decline: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -123,7 +103,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 showSettings: true,
                 showNotifications: true,
               ),
-            ),
+            ),        
             Expanded(
               child: primaryStream == null
                   ? const Center(child: Text('Not logged in'))

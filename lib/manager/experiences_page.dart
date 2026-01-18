@@ -46,246 +46,226 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                       return const Center(child: Text('Not logged in'));
                     }
 
-                    final managerStream = FirebaseFirestore.instance
+                    final managerByIdStream = FirebaseFirestore.instance
                         .collection('Experiences')
                         .where('managerId', isEqualTo: user.uid)
                         .snapshots();
 
-                    final collabByUid = FirebaseFirestore.instance
+                    // Get all experiences and filter in memory for collaborators
+                    final allExperiencesStream = FirebaseFirestore.instance
                         .collection('Experiences')
-                        .where('collaboratorUids', arrayContains: user.uid)
                         .snapshots();
 
-                    Stream<QuerySnapshot<Map<String, dynamic>>>? collabByEmail;
-                    final emailLower = user.email?.toLowerCase();
-                    if (emailLower != null) {
-                      collabByEmail = FirebaseFirestore.instance
-                          .collection('Experiences')
-                          .where(
-                            'collaboratorEmails',
-                            arrayContains: emailLower,
-                          )
-                          .snapshots();
-                    }
-
                     return StreamBuilder<QuerySnapshot>(
-                      stream: managerStream,
-                      builder: (context, managerSnap) {
-                        final managerDocs = managerSnap.data?.docs ?? [];
+                      stream: allExperiencesStream,
+                      builder: (context, allSnap) {
+                        final allDocs = allSnap.data?.docs ?? [];
+
+                        // Filter: experiences created by user OR where user is an accepted collaborator
+                        final relevantDocs = allDocs.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+
+                          // Check if user is manager/owner
+                          if (data['managerId'] == user.uid) return true;
+                          if ((data['owner']
+                                  as Map<String, dynamic>?)?['uid'] ==
+                              user.uid)
+                            return true;
+
+                          // Check if user is an accepted collaborator
+                          final collaborators =
+                              (data['collaborators'] as List?) ?? [];
+                          return collaborators.any((c) {
+                            final cUid =
+                                (c as Map<String, dynamic>)['uid'] as String?;
+                            final status = c['status'] as String?;
+                            return cUid == user.uid && status == 'accepted';
+                          });
+                        }).toList();
+
+                        // Build the UI with relevant documents
+                        List<DocumentSnapshot<Map<String, dynamic>>>
+                        managerExperienceDocs =
+                            List<DocumentSnapshot<Map<String, dynamic>>>.from(
+                              relevantDocs
+                                  .cast<
+                                    DocumentSnapshot<Map<String, dynamic>>
+                                  >(),
+                            );
 
                         return StreamBuilder<QuerySnapshot>(
-                          stream: collabByUid,
-                          builder: (context, collabSnap) {
-                            final collabDocs = collabSnap.data?.docs ?? [];
+                          stream: managerByIdStream,
+                          builder: (context, managerSnap) {
+                            final docs = managerExperienceDocs
+                              ..sort((a, b) {
+                                final aData = a.data() as Map<String, dynamic>;
+                                final bData = b.data() as Map<String, dynamic>;
+                                final ta =
+                                    (aData['last_updated'] ??
+                                            aData['lastUpdated'])
+                                        as Timestamp?;
+                                final tb =
+                                    (bData['last_updated'] ??
+                                            bData['lastUpdated'])
+                                        as Timestamp?;
+                                return (tb?.millisecondsSinceEpoch ?? 0)
+                                    .compareTo(ta?.millisecondsSinceEpoch ?? 0);
+                              });
 
-                            return StreamBuilder<
-                              QuerySnapshot<Map<String, dynamic>>
-                            >(
-                              stream: collabByEmail,
-                              builder: (context, emailSnap) {
-                                final emailDocs = emailSnap.data?.docs ?? [];
+                            final isLoading =
+                                (managerSnap.connectionState ==
+                                ConnectionState.waiting);
 
-                                // Merge unique documents by ID
-                                final Map<String, QueryDocumentSnapshot>
-                                merged = {};
-                                for (final d in managerDocs) merged[d.id] = d;
-                                for (final d in collabDocs) merged[d.id] = d;
-                                for (final d in emailDocs) merged[d.id] = d;
+                            if (isLoading) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
 
-                                final docs = merged.values.toList()
-                                  ..sort((a, b) {
-                                    final ta =
-                                        (a.data()
-                                                as Map<
-                                                  String,
-                                                  dynamic
-                                                >)['last_updated']
-                                            as Timestamp?;
-                                    final tb =
-                                        (b.data()
-                                                as Map<
-                                                  String,
-                                                  dynamic
-                                                >)['last_updated']
-                                            as Timestamp?;
-                                    return (tb?.millisecondsSinceEpoch ?? 0)
-                                        .compareTo(
-                                          ta?.millisecondsSinceEpoch ?? 0,
-                                        );
-                                  });
+                            if (docs.isEmpty) {
+                              return const Center(
+                                child: Text('No experiences added yet'),
+                              );
+                            }
 
-                                final isLoading =
-                                    (managerSnap.connectionState ==
-                                        ConnectionState.waiting) &&
-                                    (collabSnap.connectionState ==
-                                        ConnectionState.waiting) &&
-                                    (emailSnap.connectionState ==
-                                        ConnectionState.waiting);
+                            return ListView.builder(
+                              itemCount: docs.length,
+                              itemBuilder: (context, index) {
+                                final doc = docs[index];
+                                final experienceId = doc.id;
+                                final experience = Experience.fromDoc(doc);
 
-                                if (isLoading) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
+                                final category =
+                                    experience.category?.isNotEmpty == true
+                                    ? experience.category!
+                                    : '${experience.booths.length} Booths';
 
-                                if (docs.isEmpty) {
-                                  return const Center(
-                                    child: Text('No experiences added yet'),
-                                  );
-                                }
+                                final name = experience.name.isEmpty
+                                    ? 'Untitled Experience'
+                                    : experience.name;
 
-                                return ListView.builder(
-                                  itemCount: docs.length,
-                                  itemBuilder: (context, index) {
-                                    final doc = docs[index];
-                                    final experienceId = doc.id;
-                                    final experience = Experience.fromDoc(doc);
+                                final lastUpdatedString =
+                                    experience.lastUpdated != null
+                                    ? experience.lastUpdated!
+                                          .toDate()
+                                          .toString()
+                                          .substring(0, 10)
+                                    : 'Unknown';
 
-                                    final category =
-                                        experience.category?.isNotEmpty == true
-                                        ? experience.category!
-                                        : '${experience.booths.length} Booths';
-
-                                    final name = experience.name.isEmpty
-                                        ? 'Untitled Experience'
-                                        : experience.name;
-
-                                    final lastUpdatedString =
-                                        experience.lastUpdated != null
-                                        ? experience.lastUpdated!
-                                              .toDate()
-                                              .toString()
-                                              .substring(0, 10)
-                                        : 'Unknown';
-
-                                    return GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ExperienceDetailsPage(
-                                                  experienceId: experienceId,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                      child: Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.surface,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            // Image or placeholder
-                                            Container(
-                                              width: 72,
-                                              height: 72,
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                image:
-                                                    experience.imageUrl !=
-                                                            null &&
-                                                        experience
-                                                            .imageUrl!
-                                                            .isNotEmpty
-                                                    ? DecorationImage(
-                                                        image: NetworkImage(
-                                                          experience.imageUrl!,
-                                                        ),
-                                                        fit: BoxFit.cover,
-                                                      )
-                                                    : null,
-                                                color:
-                                                    experience.imageUrl ==
-                                                            null ||
-                                                        experience
-                                                            .imageUrl!
-                                                            .isEmpty
-                                                    ? Colors.grey[300]
-                                                    : null,
-                                              ),
-                                              child:
-                                                  experience.imageUrl == null ||
-                                                      experience
-                                                          .imageUrl!
-                                                          .isEmpty
-                                                  ? const Icon(
-                                                      Icons.image,
-                                                      color: Colors.grey,
-                                                      size: 32,
-                                                    )
-                                                  : null,
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            ExperienceDetailsPage(
+                                              experienceId: experienceId,
                                             ),
-
-                                            const SizedBox(width: 12),
-
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    category,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyMedium
-                                                          ?.color,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    name,
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 16,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    "Last Updated: $lastUpdatedString",
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyMedium
-                                                          ?.color,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-
-                                            Switch(
-                                              value: experience.enabled,
-                                              onChanged: (value) {
-                                                FirebaseFirestore.instance
-                                                    .collection("Experiences")
-                                                    .doc(experienceId)
-                                                    .update({
-                                                      "enabled": value,
-                                                      "last_updated":
-                                                          Timestamp.now(),
-                                                    });
-                                              },
-                                            ),
-                                          ],
-                                        ),
                                       ),
                                     );
                                   },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Image or placeholder
+                                        Container(
+                                          width: 72,
+                                          height: 72,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            image:
+                                                experience.imageUrl != null &&
+                                                    experience
+                                                        .imageUrl!
+                                                        .isNotEmpty
+                                                ? DecorationImage(
+                                                    image: NetworkImage(
+                                                      experience.imageUrl!,
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : null,
+                                            color:
+                                                experience.imageUrl == null ||
+                                                    experience.imageUrl!.isEmpty
+                                                ? Colors.grey[300]
+                                                : null,
+                                          ),
+                                          child:
+                                              experience.imageUrl == null ||
+                                                  experience.imageUrl!.isEmpty
+                                              ? const Icon(
+                                                  Icons.image,
+                                                  color: Colors.grey,
+                                                  size: 32,
+                                                )
+                                              : null,
+                                        ),
+
+                                        const SizedBox(width: 12),
+
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                category,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyMedium?.color,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                "Last Updated: $lastUpdatedString",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyMedium?.color,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        Switch(
+                                          value: experience.enabled,
+                                          onChanged: (value) {
+                                            FirebaseFirestore.instance
+                                                .collection("Experiences")
+                                                .doc(experienceId)
+                                                .update({
+                                                  "enabled": value,
+                                                  "last_updated":
+                                                      Timestamp.now(),
+                                                });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 );
                               },
                             );

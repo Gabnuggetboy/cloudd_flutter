@@ -218,7 +218,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
     for (var tag in groupedContents.keys) {
       sections.add(
         Padding(
-          padding: const EdgeInsets.only(top: 24.0, bottom: 12.0),
+          padding: const EdgeInsets.only(top: 0.0, bottom: 12.0),
           child: Text(
             tag,
             style: const TextStyle(
@@ -343,7 +343,9 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.selectionMode ? 'Add iCube Content' : 'iCube Contents'),
+        title: Text(
+          widget.selectionMode ? 'Add iCube Content' : 'iCube Contents',
+        ),
         backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
         foregroundColor: Colors.white,
         actions: widget.selectionMode
@@ -363,80 +365,119 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
               ]
             : null,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : errorMessage != null
-              ? Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: fetchContents,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry Connection'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      body: Column(
+        children: [
+          // iCUBE Logo at the top
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2.0),
+            child: Image.network(
+              'https://firebasestorage.googleapis.com/v0/b/ddapp-c89cb.firebasestorage.app/o/digitaldream_logos%2Ficube_logo.png?alt=media&token=18ccca3e-3923-469e-b2e8-e3a48157cc85',
+              height: 120,
+              errorBuilder: (context, error, stackTrace) {
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          // Content
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                ? Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : contents.isEmpty
-                  ? const Center(child: Text('No contents available'))
-                  : Column(
-                      children: [
-                        // Search bar
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                          child: TextField(
-                            controller: searchController,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.search),
-                              hintText: 'Search contents',
-                              suffixIcon: searchQuery.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        searchController.clear();
-                                        setState(() => searchQuery = '');
-                                      },
-                                    )
-                                  : null,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: fetchContents,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry Connection'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color.fromRGBO(
+                                143,
+                                148,
+                                251,
+                                1,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
-                            ),
-                            onChanged: (value) {
-                              setState(() => searchQuery = value);
-                            },
-                          ),
-                        ),
-                        // Content sections
-                        Expanded(
-                          child: RefreshIndicator(
-                            onRefresh: fetchContents,
-                            child: ListView(
-                              padding: const EdgeInsets.all(16),
-                              children: _buildContentSections(),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                  )
+                : contents.isEmpty
+                ? const Center(child: Text('No contents available'))
+                : Column(
+                    children: [
+                      // Search bar
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
+                        child: TextField(
+                          controller: searchController,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.search),
+                            hintText: 'Search contents',
+                            suffixIcon: searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      searchController.clear();
+                                      setState(() => searchQuery = '');
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12.0,
+                              vertical: 12.0,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() => searchQuery = value);
+                          },
+                        ),
+                      ),
+                      // Content sections
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: fetchContents,
+                          child: ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: _buildContentSections(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

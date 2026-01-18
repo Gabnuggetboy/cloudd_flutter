@@ -54,11 +54,21 @@ class RecentlyPlayedService {
 
     try {
       // Try to find an existing entry for this user + booth + experience
-      final existing = await _userCol(userId)
+      var existing = await _userCol(userId)
           .where('boothName', isEqualTo: boothName)
           .where('experienceId', isEqualTo: experienceId)
           .limit(1)
           .get();
+
+      // If experienceId is empty (e.g., from queue launch) and no exact match found
+      // search by just boothName and device to find the original entry
+      if (existing.docs.isEmpty && experienceId.isEmpty) {
+        existing = await _userCol(userId)
+            .where('boothName', isEqualTo: boothName)
+            .where('device', isEqualTo: device)
+            .limit(1)
+            .get();
+      }
 
       if (existing.docs.isNotEmpty) {
         // Update the existing document's timestamp and any changed fields

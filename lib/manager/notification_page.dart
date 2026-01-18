@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/models/notification.dart';
-import 'package:cloudd_flutter/models/experience.dart';
+import 'package:cloudd_flutter/services/experience_service.dart';
 
 // Reusable helper to delete a notification document from anywhere.
 Future<void> deleteNotificationDoc(
@@ -24,6 +24,7 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  final _service = ExperienceService();
   Stream<QuerySnapshot<Map<String, dynamic>>>? _notifByUid;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _notifByEmail;
 
@@ -51,49 +52,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
   ) async {
     final notification = AppNotification.fromDoc(notifDoc);
     final expId = notification.experienceId;
-    final user = FirebaseAuth.instance.currentUser;
-    final userEmail = user?.email?.toLowerCase();
-    final userUid = user?.uid;
-    if (expId == null || userEmail == null || userUid == null) return;
+    if (expId == null) return;
 
-    final expRef = FirebaseFirestore.instance
-        .collection('Experiences')
-        .doc(expId);
-    final expSnap = await expRef.get();
-    final experience = Experience.fromDoc(expSnap);
-    List coll = List.from(experience.collaborators);
-
-    // update collaborator status and ensure uid is present
-    for (var c in coll) {
-      final cEmail = (c['email'] as String?)?.toLowerCase();
-      if (cEmail == userEmail && c['status'] == 'pending') {
-        c['status'] = 'accepted';
-        // ensure uid is stored for indexing
-        c['uid'] = userUid;
+    try {
+      await _service.acceptCollaboratorInvite(expId);
+      await deleteNotificationDoc(notifDoc.reference);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invitation accepted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to accept: $e')),
+        );
       }
     }
-
-    // Update collaborators and also ensure accepted collaborators are indexed
-    final Set<String> collabUids = {};
-    final Set<String> collabEmails = {};
-    for (var c in coll) {
-      final status = (c['status'] as String?) ?? '';
-      if (status != 'accepted') continue;
-      final cuid = (c['uid'] as String?);
-      final cemail = (c['email'] as String?)?.toLowerCase();
-      if (cuid != null && cuid.isNotEmpty) collabUids.add(cuid);
-      if (cemail != null && cemail.isNotEmpty) collabEmails.add(cemail);
-    }
-
-    await expRef.update({
-      'collaborators': coll,
-      'collaboratorUids': collabUids.toList(),
-      'collaboratorEmails': collabEmails.toList(),
-    });
-
-    // delete the notification doc after accepting
-    await deleteNotificationDoc(notifDoc.reference);
-    setState(() {});
   }
 
   Future<void> _declineInvite(
@@ -101,44 +77,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
   ) async {
     final notification = AppNotification.fromDoc(notifDoc);
     final expId = notification.experienceId;
-    final user = FirebaseAuth.instance.currentUser;
-    final userEmail = user?.email?.toLowerCase();
-    if (expId == null || userEmail == null) return;
+    if (expId == null) return;
 
-    final expRef = FirebaseFirestore.instance
-        .collection('Experiences')
-        .doc(expId);
-    final expSnap = await expRef.get();
-    final experience = Experience.fromDoc(expSnap);
-    List coll = List.from(experience.collaborators);
-
-    coll.removeWhere(
-      (c) =>
-          (c['email'] as String?)?.toLowerCase() == userEmail &&
-          c['status'] == 'pending',
-    );
-
-    // Also update collaborator index arrays to remove any accepted entries (shouldn't be any)
-    final Set<String> collabUids = {};
-    final Set<String> collabEmails = {};
-    for (var c in coll) {
-      final status = (c['status'] as String?) ?? '';
-      if (status != 'accepted') continue;
-      final cuid = (c['uid'] as String?);
-      final cemail = (c['email'] as String?)?.toLowerCase();
-      if (cuid != null && cuid.isNotEmpty) collabUids.add(cuid);
-      if (cemail != null && cemail.isNotEmpty) collabEmails.add(cemail);
+    try {
+      await _service.declineCollaboratorInvite(expId);
+      await deleteNotificationDoc(notifDoc.reference);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invitation declined')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to decline: $e')),
+        );
+      }
     }
-
-    await expRef.update({
-      'collaborators': coll,
-      'collaboratorUids': collabUids.toList(),
-      'collaboratorEmails': collabEmails.toList(),
-    });
-
-    // delete the notification doc after declining
-    await deleteNotificationDoc(notifDoc.reference);
-    setState(() {});
   }
 
   @override

@@ -4,7 +4,7 @@ import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/models/manager_content_selection.dart';
 
 class IrigTestPage extends StatefulWidget {
-  final bool selectionMode; 
+  final bool selectionMode;
   final String? managerId;
   final String? experienceId;
   final List<String>? initialSelectedContents;
@@ -144,151 +144,182 @@ class _IrigTestPageState extends State<IrigTestPage> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : errorMessage != null
-              ? Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          errorMessage!,
-                          style:
-                              const TextStyle(color: Colors.red, fontSize: 14),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: fetchContents,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry Connection'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                const Color.fromRGBO(143, 148, 251, 1),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
+      body: Column(
+        children: [
+          // iRig Logo at the top
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2.0),
+            child: Image.network(
+              'https://firebasestorage.googleapis.com/v0/b/ddapp-c89cb.firebasestorage.app/o/digitaldream_logos%2Firig_logo.png?alt=media&token=2803e0fe-2356-426a-a16b-9aca3d51c546',
+              height: 80,
+              errorBuilder: (context, error, stackTrace) {
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          // Content
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                ? Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : contents.isEmpty
-                  ? const Center(child: Text('No contents available'))
-                  : RefreshIndicator(
-                      onRefresh: fetchContents,
-                      child: GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.8,
-                        ),
-                        itemCount: contents.length,
-                        itemBuilder: (context, index) {
-                          final content = contents[index];
-                          final contentName = content['name'];
-                          final isSelected =
-                              selectedContents.contains(contentName);
-
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  selectedContents.remove(contentName);
-                                } else {
-                                  selectedContents.add(contentName);
-                                }
-                              });
-                            },
-                            child: Card(
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: fetchContents,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry Connection'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color.fromRGBO(
+                                143,
+                                148,
+                                251,
+                                1,
                               ),
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(
-                                    child: ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(
-                                          top: Radius.circular(12)),
-                                      child: Stack(
-                                        fit: StackFit.expand,
-                                        children: [
-                                          Image.network(
-                                            DeviceLoadingService.getContentIconUrl(
-                                              'iRig',
-                                              content['icon_url'] ?? '',
-                                            ),
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return Container(
-                                                color: Colors.grey[300],
-                                                child: const Icon(
-                                                  Icons.image_not_supported,
-                                                  size: 64,
-                                                  color: Colors.grey,
-                                                ),
-                                              );
-                                            },
-                                            loadingBuilder:
-                                                (context, child, progress) {
-                                              if (progress == null) {
-                                                return child;
-                                              }
-                                              return const Center(
-                                                child:
-                                                    CircularProgressIndicator(),
-                                              );
-                                            },
-                                          ),
-                                          if (isSelected)
-                                            Container(
-                                              color:
-                                                  Colors.black.withOpacity(0.5),
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.check_circle,
-                                                  color: Colors.white,
-                                                  size: 48,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Text(
-                                      content['name'],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
                               ),
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
                     ),
+                  )
+                : contents.isEmpty
+                ? const Center(child: Text('No contents available'))
+                : RefreshIndicator(
+                    onRefresh: fetchContents,
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.8,
+                          ),
+                      itemCount: contents.length,
+                      itemBuilder: (context, index) {
+                        final content = contents[index];
+                        final contentName = content['name'];
+                        final isSelected = selectedContents.contains(
+                          contentName,
+                        );
+
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                selectedContents.remove(contentName);
+                              } else {
+                                selectedContents.add(contentName);
+                              }
+                            });
+                          },
+                          child: Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(12),
+                                    ),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(
+                                          DeviceLoadingService.getContentIconUrl(
+                                            'iRig',
+                                            content['icon_url'] ?? '',
+                                          ),
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(
+                                                    Icons.image_not_supported,
+                                                    size: 64,
+                                                    color: Colors.grey,
+                                                  ),
+                                                );
+                                              },
+                                          loadingBuilder:
+                                              (context, child, progress) {
+                                                if (progress == null) {
+                                                  return child;
+                                                }
+                                                return const Center(
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                );
+                                              },
+                                        ),
+                                        if (isSelected)
+                                          Container(
+                                            color: Colors.black.withOpacity(
+                                              0.5,
+                                            ),
+                                            child: const Center(
+                                              child: Icon(
+                                                Icons.check_circle,
+                                                color: Colors.white,
+                                                size: 48,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Text(
+                                    content['name'],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

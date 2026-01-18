@@ -136,7 +136,7 @@ class _HomePageState extends State<HomePage> {
     for (final doc in signupsSnap.docs) {
       final expId = doc['experienceId'];
       counts[expId] = (counts[expId] ?? 0) + 1;
-    }
+    }//This also coout
 
     // 3. Sort by popularity
     final sortedIds = counts.entries.toList()
@@ -186,13 +186,19 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 10),
 
                   /// Greetings
-                  const Text(
+                  Text(
                     "Hi User,",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const Text(
+                  Text(
                     "Find The Best Experiences for You",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
 
                   const SizedBox(height: 20),
@@ -292,17 +298,17 @@ class _HomePageState extends State<HomePage> {
                   // const SizedBox(height: 25),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
+                    children: [
                       Text(
                         "Categories",
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         "See all",
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                         ),
@@ -337,7 +343,7 @@ class _HomePageState extends State<HomePage> {
                             .toList();
 
                         if (categories.isEmpty) {
-                          return const Center(child: Text('No categories'));
+                          return Center(child: Text('No categories', style: Theme.of(context).textTheme.bodyMedium));
                         }
 
                         return ListView.builder(
@@ -385,7 +391,9 @@ class _HomePageState extends State<HomePage> {
                                       textAlign: TextAlign.center,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 12),
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -403,9 +411,9 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         "Recommended for You",
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -429,7 +437,7 @@ class _HomePageState extends State<HomePage> {
                     child: _recommendedLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _recommendedExperiences.isEmpty
-                        ? const Center(child: Text('No recommendations yet'))
+                        ? Center(child: Text('No recommendations yet', style: Theme.of(context).textTheme.bodyMedium))
                         : ListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: _recommendedExperiences.length,
@@ -495,7 +503,7 @@ class _HomePageState extends State<HomePage> {
                                               experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -503,7 +511,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                                 fontSize: 12,
                                               ),
                                             ),
@@ -528,9 +536,9 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         "Most Popular",
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -554,8 +562,8 @@ class _HomePageState extends State<HomePage> {
                     child: _popularLoading
                         ? const Center(child: CircularProgressIndicator())
                         : _popularExperiences.isEmpty
-                        ? const Center(
-                            child: Text('No popular experiences yet'),
+                        ? Center(
+                            child: Text('No popular experiences yet', style: Theme.of(context).textTheme.bodyMedium),
                           )
                         : ListView.builder(
                             scrollDirection: Axis.horizontal,
@@ -622,7 +630,7 @@ class _HomePageState extends State<HomePage> {
                                               experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -630,7 +638,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                                 fontSize: 12,
                                               ),
                                             ),
@@ -648,9 +656,12 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 30),
 
                   // Recently Played Header
-                  const Text(
+                  Text(
                     "Recently Played",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
 
                   const SizedBox(height: 10),
@@ -662,18 +673,17 @@ class _HomePageState extends State<HomePage> {
                       stream: RecentlyPlayedService.streamCurrentUserRecent(),
                       builder: (context, snap) {
                         if (snap.hasError) {
-                          return Center(child: Text('Error: ${snap.error}'));
+                          return Center(child: Text('Error: ${snap.error}', style: Theme.of(context).textTheme.bodyMedium));
                         }
                         if (!snap.hasData) {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );
                         }
-
                         final items = snap.data!;
                         if (items.isEmpty) {
-                          return const Center(
-                            child: Text('No recently played content'),
+                          return Center(
+                            child: Text('No recently played content', style: Theme.of(context).textTheme.bodyMedium),
                           );
                         }
 
@@ -748,7 +758,7 @@ class _HomePageState extends State<HomePage> {
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
+                                        color: Colors.black.withValues(alpha: 0.05),
                                         blurRadius: 6,
                                         offset: const Offset(0, 3),
                                       ),
@@ -819,7 +829,7 @@ class _HomePageState extends State<HomePage> {
                                           children: [
                                             Text(
                                               rp.boothName,
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w700,
                                               ),
@@ -829,9 +839,9 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               rp.device,
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                                 fontSize: 10,
-                                                color: Colors.grey,
+                                                color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
@@ -839,7 +849,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               rp.experienceName,
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                                 fontSize: 10,
                                               ),
                                               maxLines: 1,
@@ -861,9 +871,9 @@ class _HomePageState extends State<HomePage> {
                                                     : '${remainder}s';
                                                 return Text(
                                                   'Playtime: $playtimeText',
-                                                  style: const TextStyle(
+                                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                                     fontSize: 12,
-                                                    color: Colors.grey,
+                                                    color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                                                   ),
                                                 );
                                               },

@@ -70,9 +70,8 @@ class SettingsPage extends StatelessWidget {
       child: ListTile(
         title: Text(
           title,
-          style: TextStyle(
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
         trailing: trailing,

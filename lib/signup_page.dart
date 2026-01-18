@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloudd_flutter/app_theme.dart';
 import 'package:animate_do/animate_do.dart';
 import 'login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -54,7 +55,36 @@ class _SignUpPageState extends State<SignUpPage> {
 
       showMessage("Account created! Please verify your email.");
     } on FirebaseAuthException catch (e) {
-      showMessage(e.message ?? "An error occurred");
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-credential':
+          errorMessage = "Invalid email or password. Please try again.";
+          break;
+        case 'email-already-in-use':
+          errorMessage = "This email is already registered. Please login instead.";
+          break;
+        case 'invalid-email':
+          errorMessage = "Please enter a valid email address.";
+          break;
+        case 'weak-password':
+          errorMessage = "Password is too weak. Use at least 6 characters.";
+          break;
+        case 'operation-not-allowed':
+          errorMessage = "Email/password sign up is not enabled.";
+          break;
+        case 'user-disabled':
+          errorMessage = "This account has been disabled.";
+          break;
+        case 'user-not-found':
+          errorMessage = "No account found with this email.";
+          break;
+        case 'wrong-password':
+          errorMessage = "Incorrect password. Please try again.";
+          break;
+        default:
+          errorMessage = e.message ?? "An error occurred. Please try again.";
+      }
+      showMessage(errorMessage);
     }
   }
 
@@ -64,7 +94,28 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Theme(
+      data: AppTheme.lightTheme.copyWith(
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Colors.black,
+          selectionColor: Color(0x33000000),
+          selectionHandleColor: Colors.black,
+        ),
+        inputDecorationTheme: AppTheme.lightTheme.inputDecorationTheme.copyWith(
+          filled: true,
+          fillColor: Colors.white,
+          hintStyle: TextStyle(color: Colors.grey[700]),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Colors.black, width: 1.3),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF8F94FB), width: 2),
+          ),
+        ),
+      ),
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Container(
@@ -183,8 +234,12 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               child: TextField(
                                 controller: emailController,
+                                keyboardAppearance: Brightness.light,
+                                cursorColor: Colors.black,
+                                style: TextStyle(color: Colors.black),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
+                                  filled: false,
                                   hintText: "Email",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
                                 ),
@@ -204,8 +259,12 @@ class _SignUpPageState extends State<SignUpPage> {
                               child: TextField(
                                 controller: passwordController,
                                 obscureText: true,
+                                keyboardAppearance: Brightness.light,
+                                cursorColor: Colors.black,
+                                style: TextStyle(color: Colors.black),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
+                                  filled: false,
                                   hintText: "Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
                                 ),
@@ -218,8 +277,12 @@ class _SignUpPageState extends State<SignUpPage> {
                               child: TextField(
                                 controller: confirmController,
                                 obscureText: true,
+                                keyboardAppearance: Brightness.light,
+                                cursorColor: Colors.black,
+                                style: TextStyle(color: Colors.black),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
+                                  filled: false,
                                   hintText: "Confirm Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
                                 ),
@@ -302,6 +365,8 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
         ),
       ),
+      ),
     );
+    
   }
 }

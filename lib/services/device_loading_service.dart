@@ -2,12 +2,23 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class DeviceLoadingService {
-  static const String icubeBase = 'http://192.168.0.143:5000';
-  static const String irigBase = 'http://192.168.0.126:5000';
+  static const String icubeBase = 'http://192.168.1.101:5000';
+  static const String irigBase = 'http://192.168.1.81:5000';
   static const String icreateBase = 'http://192.168.0.129:5000';
   static const String storytimeBase = 'http://192.168.0.103:5000';
 
   static const Duration timeout = Duration(seconds: 10);
+
+  static const Map<String, String> deviceLogos = {
+    'iCube':
+        'https://firebasestorage.googleapis.com/v0/b/ddapp-c89cb.firebasestorage.app/o/digitaldream_logos%2Ficube_logo.png?alt=media&token=18ccca3e-3923-469e-b2e8-e3a48157cc85',
+    'iCreate':
+        'https://firebasestorage.googleapis.com/v0/b/ddapp-c89cb.firebasestorage.app/o/digitaldream_logos%2Ficreate_logo.png?alt=media&token=64791cf0-b248-41a5-a8cf-1d28d0098279',
+    'iRig':
+        'https://firebasestorage.googleapis.com/v0/b/ddapp-c89cb.firebasestorage.app/o/digitaldream_logos%2Firig_logo.png?alt=media&token=2803e0fe-2356-426a-a16b-9aca3d51c546',
+    'Storytime':
+        'https://firebasestorage.googleapis.com/v0/b/ddapp-c89cb.firebasestorage.app/o/digitaldream_logos%2Fstorytime_logo.png?alt=media&token=044b121e-a765-487d-b4ee-8599e8aea0d0',
+  };
 
   static Future<DeviceContentResult> _fetchDeviceContent(
     String baseUrl,
@@ -44,8 +55,9 @@ class DeviceLoadingService {
   static Future<DeviceContentResult> fetchStorytimeContents() =>
       _fetchDeviceContent(storytimeBase, 'Storytime');
 
-  // this FETCHALLDEVICECONTENTS is not used in explore_experience_page.dart
-  // because although it will reduce number of code, it sadly makes loading the page slow...
+  // this fetchAllDeviceContents is not used in explore_experience_page.dart
+  // because although it will reduce lines of code, it sadly makes loading the page slow...
+  //But fetchAllDeviceContents is still used in home_page to load recently played content
   static Future<Map<String, DeviceContentResult>>
   fetchAllDeviceContents() async {
     final results = await Future.wait([
@@ -209,6 +221,46 @@ class DeviceLoadingService {
     }
   }
 
+  static Future<DeviceClientIPResult> getClientIP(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return DeviceClientIPResult(
+        clientIP: null,
+        runningContent: null,
+        status: 'error',
+        error: 'Unknown device',
+      );
+    }
+
+    try {
+      final res = await http.get(Uri.parse('$base/client_ip')).timeout(timeout);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return DeviceClientIPResult(
+          clientIP: data['client_ip'] as String?,
+          runningContent: null,
+          status: data['status'] as String? ?? 'ok',
+          error: null,
+        );
+      } else {
+        return DeviceClientIPResult(
+          clientIP: null,
+          runningContent: null,
+          status: 'error',
+          error: 'Failed to get client IP',
+        );
+      }
+    } catch (e) {
+      return DeviceClientIPResult(
+        clientIP: null,
+        runningContent: null,
+        status: 'error',
+        error: 'Error: $e',
+      );
+    }
+  }
+
   static Future<DeviceClientIPResult> checkLaunchedClientIP(
     String device,
   ) async {
@@ -250,6 +302,139 @@ class DeviceLoadingService {
         status: 'error',
         error: 'Error: $e',
       );
+    }
+  }
+
+  static Future<EnqueueResult> enqueueDevice(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return EnqueueResult(success: false, message: 'Unknown device');
+    }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$base/enqueue/$device'))
+          .timeout(timeout);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return EnqueueResult(
+          success: true,
+          message: 'Added to queue',
+          queuePosition: data['queue_position'] as int?,
+          queueCount: data['queue_count'] as int?,
+        );
+      } else {
+        return EnqueueResult(success: false, message: 'Failed to enqueue');
+      }
+    } catch (e) {
+      return EnqueueResult(success: false, message: 'Error: $e');
+    }
+  }
+
+  static Future<QueuePositionResult> getQueuePosition(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return QueuePositionResult(
+        inQueue: false,
+        queuePosition: -1,
+        queueCount: 0,
+        error: 'Unknown device',
+      );
+    }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$base/queue-position/$device'))
+          .timeout(timeout);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final inQueue = data['status'] == 'in_queue';
+        return QueuePositionResult(
+          inQueue: inQueue,
+          queuePosition: data['queue_position'] as int? ?? -1,
+          queueCount: data['queue_count'] as int? ?? 0,
+          error: null,
+        );
+      } else {
+        return QueuePositionResult(
+          inQueue: false,
+          queuePosition: -1,
+          queueCount: 0,
+          error: 'Failed to get queue position',
+        );
+      }
+    } catch (e) {
+      return QueuePositionResult(
+        inQueue: false,
+        queuePosition: -1,
+        queueCount: 0,
+        error: 'Error: $e',
+      );
+    }
+  }
+
+  static Future<QueueInfoResult> getQueueInfo(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return QueueInfoResult(
+        device: device,
+        queueCount: 0,
+        runningContent: null,
+        error: 'Unknown device',
+      );
+    }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$base/queue-info/$device'))
+          .timeout(timeout);
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return QueueInfoResult(
+          device: device,
+          queueCount: data['queue_count'] as int? ?? 0,
+          runningContent: data['running_content'] as String?,
+          error: null,
+        );
+      } else {
+        return QueueInfoResult(
+          device: device,
+          queueCount: 0,
+          runningContent: null,
+          error: 'Failed to get queue info',
+        );
+      }
+    } catch (e) {
+      return QueueInfoResult(
+        device: device,
+        queueCount: 0,
+        runningContent: null,
+        error: 'Error: $e',
+      );
+    }
+  }
+
+  static Future<DequeueResult> dequeueDevice(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return DequeueResult(success: false, message: 'Unknown device');
+    }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$base/dequeue/$device'))
+          .timeout(timeout);
+
+      if (res.statusCode == 200) {
+        return DequeueResult(success: true, message: 'Removed from queue');
+      } else {
+        return DequeueResult(success: false, message: 'Failed to dequeue');
+      }
+    } catch (e) {
+      return DequeueResult(success: false, message: 'Error: $e');
     }
   }
 }
@@ -301,4 +486,53 @@ class DeviceClientIPResult {
     required this.status,
     this.error,
   });
+}
+
+class EnqueueResult {
+  final bool success;
+  final String message;
+  final int? queuePosition;
+  final int? queueCount;
+
+  EnqueueResult({
+    required this.success,
+    required this.message,
+    this.queuePosition,
+    this.queueCount,
+  });
+}
+
+class QueuePositionResult {
+  final bool inQueue;
+  final int queuePosition;
+  final int queueCount;
+  final String? error;
+
+  QueuePositionResult({
+    required this.inQueue,
+    required this.queuePosition,
+    required this.queueCount,
+    this.error,
+  });
+}
+
+class QueueInfoResult {
+  final String device;
+  final int queueCount;
+  final String? runningContent;
+  final String? error;
+
+  QueueInfoResult({
+    required this.device,
+    required this.queueCount,
+    this.runningContent,
+    this.error,
+  });
+}
+
+class DequeueResult {
+  final bool success;
+  final String message;
+
+  DequeueResult({required this.success, required this.message});
 }

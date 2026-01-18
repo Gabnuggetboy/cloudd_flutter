@@ -9,14 +9,12 @@ class Experience {
   final String? logoUrl;
   final String? imageUrl;
   final bool enabled;
-  final String? creatorId;
   final String? managerId;
+  final Map<String, dynamic>? owner; 
   final Timestamp? createdAt;
   final Timestamp? lastUpdated;
   final List<Map<String, dynamic>> booths;
-  final List<Map<String, dynamic>> collaborators;
-  final List<String> collaboratorUids;
-  final List<String> collaboratorEmails;
+  final List<Map<String, dynamic>> collaborators; 
 
   Experience({
     required this.id,
@@ -26,14 +24,12 @@ class Experience {
     this.description,
     this.logoUrl,
     this.enabled = true,
-    this.creatorId,
     this.managerId,
+    this.owner,
     this.createdAt,
     this.lastUpdated,
     this.booths = const [],
     this.collaborators = const [],
-    this.collaboratorUids = const [],
-    this.collaboratorEmails = const [],
     this.imageUrl,
   });
 
@@ -47,10 +43,10 @@ class Experience {
       description: data['description'] as String?,
       logoUrl: data['logoUrl'] as String?,
       enabled: data['enabled'] as bool? ?? true,
-      creatorId: data['creatorId'] as String?,
       managerId: data['managerId'] as String?,
+      owner: data['owner'] as Map<String, dynamic>?,
       createdAt: data['createdAt'] as Timestamp?,
-      lastUpdated: data['last_updated'] as Timestamp?,
+      lastUpdated: (data['last_updated'] ?? data['lastUpdated']) as Timestamp?,
       imageUrl: data['imageUrl'] as String?,
       booths:
           (data['booths'] as List?)
@@ -62,16 +58,6 @@ class Experience {
               ?.map((c) => Map<String, dynamic>.from(c as Map))
               .toList() ??
           [],
-      collaboratorUids:
-          (data['collaboratorUids'] as List?)
-              ?.map((uid) => uid.toString())
-              .toList() ??
-          [],
-      collaboratorEmails:
-          (data['collaboratorEmails'] as List?)
-              ?.map((email) => email.toString())
-              .toList() ??
-          [],
     );
   }
 
@@ -79,19 +65,14 @@ class Experience {
     return {
       'name': name,
       'category': category,
-      'device': device,
-      'description': description,
-      'logoUrl': logoUrl,
       'enabled': enabled,
-      'creatorId': creatorId,
       'managerId': managerId,
-      'createdAt': createdAt ?? FieldValue.serverTimestamp(),
-      'last_updated': lastUpdated ?? FieldValue.serverTimestamp(),
+      'owner': owner,
       'booths': booths,
       'collaborators': collaborators,
-      'collaboratorUids': collaboratorUids,
-      'collaboratorEmails': collaboratorEmails,
       'imageUrl': imageUrl,
+      // Store using snake_case to match collection docs
+      'last_updated': lastUpdated ?? FieldValue.serverTimestamp(),
     };
   }
 
@@ -103,14 +84,12 @@ class Experience {
     String? description,
     String? logoUrl,
     bool? enabled,
-    String? creatorId,
     String? managerId,
+    Map<String, dynamic>? owner,
     Timestamp? createdAt,
     Timestamp? lastUpdated,
     List<Map<String, dynamic>>? booths,
     List<Map<String, dynamic>>? collaborators,
-    List<String>? collaboratorUids,
-    List<String>? collaboratorEmails,
     String? imageUrl,
   }) {
     return Experience(
@@ -121,14 +100,12 @@ class Experience {
       description: description ?? this.description,
       logoUrl: logoUrl ?? this.logoUrl,
       enabled: enabled ?? this.enabled,
-      creatorId: creatorId ?? this.creatorId,
       managerId: managerId ?? this.managerId,
+      owner: owner ?? this.owner,
       createdAt: createdAt ?? this.createdAt,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       booths: booths ?? this.booths,
       collaborators: collaborators ?? this.collaborators,
-      collaboratorUids: collaboratorUids ?? this.collaboratorUids,
-      collaboratorEmails: collaboratorEmails ?? this.collaboratorEmails,
       imageUrl: imageUrl ?? this.imageUrl,
     );
   }
