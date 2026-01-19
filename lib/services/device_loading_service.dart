@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class DeviceLoadingService {
-  static const String icubeBase = 'http://192.168.1.101:5000';
-  static const String irigBase = 'http://192.168.1.81:5000';
+  static const String icubeBase = 'http://192.168.0.143:5000';
+  static const String irigBase = 'http://192.168.0.126:5000';
   static const String icreateBase = 'http://192.168.0.129:5000';
   static const String storytimeBase = 'http://192.168.0.103:5000';
 

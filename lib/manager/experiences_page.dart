@@ -134,11 +134,12 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                 final doc = docs[index];
                                 final experienceId = doc.id;
                                 final experience = Experience.fromDoc(doc);
-
-                                final category =
+                                 final category =
                                     experience.category?.isNotEmpty == true
                                     ? experience.category!
                                     : '${experience.booths.length} Booths';
+
+                                final boothsCount = experience.booths.length;
 
                                 final name = experience.name.isEmpty
                                     ? 'Untitled Experience'
@@ -222,6 +223,16 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                               Text(
                                                 category,
                                                 style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyMedium?.color,
+                                                ),
+                                              ),
+                                              Text(
+                                                "$boothsCount Booths",
+                                                style: TextStyle(
                                                   fontSize: 12,
                                                   color: Theme.of(
                                                     context,
@@ -233,7 +244,7 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                                 name,
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
+                                                  fontSize: 18,
                                                 ),
                                               ),
                                               const SizedBox(height: 4),

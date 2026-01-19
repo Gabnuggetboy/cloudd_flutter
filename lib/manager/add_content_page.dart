@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 
 class AddContentPage extends StatefulWidget {
@@ -150,6 +151,42 @@ class _AddContentPageState extends State<AddContentPage> {
         default:
           return;
       }
+
+      // For iCube, fetch tags for each content item in parallel
+      if (device == 'iCube' && result.error == null) {
+        final contentsList = result.contents;
+
+        // Create list of futures for parallel execution
+        final tagFutures = contentsList.map((content) async {
+          if (content['has_tag'] == true && content['tag_url'] != null) {
+            try {
+              final tagResponse = await http
+                  .get(
+                    Uri.parse(
+                      '${DeviceLoadingService.getBaseUrl('iCube')}${content['tag_url']}',
+                    ),
+                  )
+                  .timeout(const Duration(seconds: 5));
+
+              if (tagResponse.statusCode == 200) {
+                final tagText = tagResponse.body.trim();
+                content['tag'] = tagText.isNotEmpty ? tagText : 'Other';
+              } else {
+                content['tag'] = 'Other';
+              }
+            } catch (e) {
+              content['tag'] = 'Other';
+            }
+          } else {
+            content['tag'] = 'Other';
+          }
+        }).toList();
+
+        // Wait for all tag requests to complete in parallel
+        await Future.wait(tagFutures);
+        result = DeviceContentResult(contents: contentsList, error: null);
+      }
+
       if (!mounted) return;
       setState(() {
         deviceContents[device] = result;
@@ -344,9 +381,11 @@ class _AddContentPageState extends State<AddContentPage> {
                 child: Text(
                   entry.key,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 30,
                     fontWeight: FontWeight.bold,
+                    color: Colors.orange,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
               GridView.builder(
