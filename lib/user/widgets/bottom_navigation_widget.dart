@@ -121,14 +121,14 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                   ),
                   onPressed: () {
                     _onTap(1);
-                    // Only navigate if not already on TradingPage
-                    if (widget.context.widget.runtimeType != TradingPage) {
+                    // Only navigate if not already on TradingPage [NOW WORK IN PROGRESS PAGE]
+                    if (widget.context.widget.runtimeType != WorkInProgressPage) {
                       Navigator.pushReplacement(
                         context,
                         PageRouteBuilder(
                           pageBuilder:
                               (context, animation, secondaryAnimation) =>
-                                  const TradingPage(),
+                                  const WorkInProgressPage(),
                           transitionDuration: Duration.zero,
                           reverseTransitionDuration: Duration.zero,
                         ),
