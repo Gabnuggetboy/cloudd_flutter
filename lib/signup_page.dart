@@ -5,6 +5,9 @@ import 'login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudd_flutter/models/user.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -17,13 +20,87 @@ class _SignUpPageState extends State<SignUpPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
+  final nameController = TextEditingController();
+  DateTime? selectedDob;
+  File? profileImage;
+    bool passwordVisible = false;
+  bool confirmPasswordVisible = false;
+
+  @override
+  void dispose() {
+    passwordController.dispose();
+    confirmController.dispose();
+    super.dispose();
+  }
+
+  Widget inputContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+
+    if (picked != null) {
+      setState(() {
+        profileImage = File(picked.path);
+      });
+    }
+  }
+
+  Future<void> pickDateOfBirth() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2005),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+
+    if (date != null) {
+      setState(() {
+        selectedDob = date;
+      });
+    }
+  }
+
+  Future<String?> uploadProfileImage(String uid) async {
+  if (profileImage == null) return null;
+
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('profile_images/$uid.jpg');
+
+  await ref.putFile(profileImage!);
+  return await ref.getDownloadURL();
+  }
+
 
   Future<void> registerUser() async {
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
-    String confirm = confirmController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirm = confirmController.text.trim();
+    final name = nameController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+    if (email.isEmpty ||
+        password.isEmpty ||
+        confirm.isEmpty ||
+        name.isEmpty ||
+        selectedDob == null) {
       showMessage("Please fill all fields");
       return;
     }
@@ -35,23 +112,30 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       // Create user
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      // Send verification email
-      await userCredential.user!.sendEmailVerification();
-
-      // Save user in Firestore using the AppUser model
-      final newUser = AppUser(
-        uid: userCredential.user!.uid,
+      // 1️⃣ Create Firebase Auth user
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
         email: email,
-        role: 'User',
+        password: password,
       );
 
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userCredential.user!.uid)
-          .set(newUser.toMap());
+      await credential.user!.sendEmailVerification();
+
+       // 2️⃣ Upload profile image
+      final imageUrl = await uploadProfileImage(credential.user!.uid);
+
+
+      // 3️⃣ Create AppUser MODEL
+       final user = AppUser(
+        uid: credential.user!.uid,
+        email: email,
+        name: name,
+        role: 'User',
+        dateOfBirth: Timestamp.fromDate(selectedDob!),
+        profileImageUrl: imageUrl,
+      );
+
+      await user.save();
 
       showMessage("Account created! Please verify your email.");
     } on FirebaseAuthException catch (e) {
@@ -209,9 +293,9 @@ class _SignUpPageState extends State<SignUpPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Color.fromRGBO(143, 148, 251, 1),
-                          ),
+                          // border: Border.all(
+                          //   color: Color.fromRGBO(143, 148, 251, 1),
+                          // ),
                           boxShadow: [
                             BoxShadow(
                               color: Color.fromRGBO(143, 148, 251, .2),
@@ -222,13 +306,84 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                         child: Column(
                           children: <Widget>[
+
+                            // Full Name
+                            Container(
+                              padding: const EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
+                                ),                                
+                              ),
+                              child: TextField(
+                                controller: nameController,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: "Full Name",
+                                ),
+                              ),
+                            ),
+
+                            // Date of birth
+                            Container(
+                              
+                              padding: const EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
+                                ),
+                              ),
+                              child: GestureDetector(
+                                onTap: pickDateOfBirth,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      selectedDob == null
+                                          ? "Date of Birth"
+                                          : "${selectedDob!.day}/${selectedDob!.month}/${selectedDob!.year}",
+                                      style: TextStyle(
+                                        color: selectedDob == null ? Colors.grey : Colors.black,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+
+                            // Profile Picture
+                            GestureDetector(
+                              onTap: pickImage,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: CircleAvatar(
+                                  radius: 70,
+                                  backgroundColor: const Color.fromRGBO(143, 148, 251, 0.4),
+                                  backgroundImage:
+                                      profileImage != null ? FileImage(profileImage!) : null,
+                                  child: profileImage == null
+                                      ? const Icon(Icons.camera_alt, color: Colors.white)
+                                      : null,
+                                ),
+                              ),
+                            ),
                             // Email
                             Container(
                               padding: EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
                                 border: Border(
-                                  bottom: BorderSide(
-                                    color: Color.fromRGBO(143, 148, 251, 1),
+                                    bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
                                   ),
                                 ),
                               ),
@@ -252,13 +407,15 @@ class _SignUpPageState extends State<SignUpPage> {
                               decoration: BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: Color.fromRGBO(143, 148, 251, 1),
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
                                   ),
                                 ),
                               ),
                               child: TextField(
                                 controller: passwordController,
-                                obscureText: true,
+                                onChanged: (_) => setState(() {}),
+                                obscureText: !passwordVisible,
                                 keyboardAppearance: Brightness.light,
                                 cursorColor: Colors.black,
                                 style: TextStyle(color: Colors.black),
@@ -267,16 +424,36 @@ class _SignUpPageState extends State<SignUpPage> {
                                   filled: false,
                                   hintText: "Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      passwordVisible ? Icons.visibility : Icons.visibility_off,
+                                      color: Colors.grey[700],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        passwordVisible = !passwordVisible;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
 
-                            // Confirm Password (NO bottom border)
+                            // Confirm Password
                             Container(
                               padding: EdgeInsets.all(8.0),
+                                decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
+                                ),
+                              ),
                               child: TextField(
                                 controller: confirmController,
-                                obscureText: true,
+                                onChanged: (_) => setState(() {}),
+                                obscureText: !confirmPasswordVisible,
                                 keyboardAppearance: Brightness.light,
                                 cursorColor: Colors.black,
                                 style: TextStyle(color: Colors.black),
@@ -285,6 +462,17 @@ class _SignUpPageState extends State<SignUpPage> {
                                   filled: false,
                                   hintText: "Confirm Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
+                                                                    suffixIcon: IconButton(
+                                    icon: Icon(
+                                      confirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                      color: Colors.grey[700],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        confirmPasswordVisible = !confirmPasswordVisible;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                             ),

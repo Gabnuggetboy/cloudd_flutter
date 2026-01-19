@@ -14,7 +14,7 @@ class _WorkInProgressPageState extends State<WorkInProgressPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FA),
       appBar: AppBar(
-      automaticallyImplyLeading: false, // ---> They say this will remove the back button from the app bar, but it doesnt work for soem reason
+      automaticallyImplyLeading: false, // ---> Removes back button
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black,

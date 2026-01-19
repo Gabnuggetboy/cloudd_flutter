@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:cloudd_flutter/theme_provider.dart';
+import 'package:cloudd_flutter/forgot_password_page.dart';
 // import 'package:cloudd_flutter/webapp_access_page.dart';
 // import 'icube_test.dart';
 import 'package:cloudd_flutter/models/user.dart';
@@ -23,6 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  bool _passwordVisible = false;
 
   @override
   void dispose() {
@@ -434,7 +437,7 @@ class _LoginPageState extends State<LoginPage> {
                                 child: TextField(
                                   controller: _passwordController,
                                   onChanged: (_) => setState(() {}),
-                                  obscureText: true,
+                                  obscureText: !_passwordVisible, // Use a state variable to control visibility
                                   keyboardAppearance: Brightness.light,
                                   cursorColor: Colors.black,
                                   style: TextStyle(color: Colors.black),
@@ -445,6 +448,18 @@ class _LoginPageState extends State<LoginPage> {
                                     hintStyle: TextStyle(
                                       color: Colors.grey[700],
                                     ),
+
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                                      color: Colors.grey[700],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _passwordVisible = !_passwordVisible;
+                                      });
+                                    },
+                                  ),
                                   ),
                                 ),
                               ),
@@ -531,13 +546,24 @@ class _LoginPageState extends State<LoginPage> {
                         duration: Duration(milliseconds: 2000),
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 100.0),
+                           child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ForgotPasswordPage(),
+                              ),
+                            );
+                          },
                           child: Text(
                             "Forgot Password?",
                             style: TextStyle(
                               color: Color.fromRGBO(143, 148, 251, 1),
+                              fontWeight: FontWeight.w600
                             ),
                           ),
                         ),
+                      ),
                       ),
                     ],
                   ),
