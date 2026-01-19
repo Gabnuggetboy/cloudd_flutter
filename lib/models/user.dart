@@ -45,7 +45,7 @@ class AppUser {
       'created_at': createdAt ?? FieldValue.serverTimestamp(),
     };
   }
-
+  
   Future<void> save() async {
   try {
     await FirebaseFirestore.instance
