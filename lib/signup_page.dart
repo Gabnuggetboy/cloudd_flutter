@@ -22,6 +22,15 @@ class _SignUpPageState extends State<SignUpPage> {
   final nameController = TextEditingController();
   DateTime? selectedDob;
   File? profileImage;
+  bool passwordVisible = false;
+  bool confirmPasswordVisible = false;
+
+  @override
+  void dispose() {
+    passwordController.dispose();
+    confirmController.dispose();
+    super.dispose();
+  }
 
   Widget inputContainer({required Widget child}) {
     return Container(
@@ -244,8 +253,13 @@ class _SignUpPageState extends State<SignUpPage> {
                             // Full Name
                             Container(
                               padding: const EdgeInsets.all(8.0),
-                              decoration: const BoxDecoration(
-                                
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
+                                ),
                               ),
                               child: TextField(
                                 controller: nameController,
@@ -257,9 +271,19 @@ class _SignUpPageState extends State<SignUpPage> {
                             ),
 
                             // Date of birth
-                            GestureDetector(
-                              onTap: pickDateOfBirth,
-                              child: inputContainer(
+                            Container(
+                              
+                              padding: const EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
+                                ),
+                              ),
+                              child: GestureDetector(
+                                onTap: pickDateOfBirth,
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -277,7 +301,6 @@ class _SignUpPageState extends State<SignUpPage> {
                                 ),
                               ),
                             ),
-
 
                             // Profile Picture
                             GestureDetector(
@@ -301,7 +324,10 @@ class _SignUpPageState extends State<SignUpPage> {
                               padding: EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
                                 border: Border(
-                                  
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
                                 ),
                               ),
                               child: TextField(
@@ -319,16 +345,31 @@ class _SignUpPageState extends State<SignUpPage> {
                               padding: EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
                                 border: Border(
-                                  
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
                                 ),
                               ),
                               child: TextField(
                                 controller: passwordController,
-                                obscureText: true,
+                                onChanged: (_) => setState(() {}),
+                                obscureText: !passwordVisible,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      passwordVisible ? Icons.visibility : Icons.visibility_off,
+                                      color: Colors.grey[700],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        passwordVisible = !passwordVisible;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
@@ -336,13 +377,33 @@ class _SignUpPageState extends State<SignUpPage> {
                             // Confirm Password
                             Container(
                               padding: EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey[300]!,
+                                    width: 1.0,
+                                  ),
+                                ),
+                              ),
                               child: TextField(
                                 controller: confirmController,
-                                obscureText: true,
+                                onChanged: (_) => setState(() {}),
+                                obscureText: !confirmPasswordVisible,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Confirm Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      confirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                      color: Colors.grey[700],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        confirmPasswordVisible = !confirmPasswordVisible;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                             ),

@@ -20,7 +20,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
+  bool _passwordVisible = false;
+  
   @override
   void dispose() {
     _emailController.dispose();
@@ -348,7 +349,7 @@ class _LoginPageState extends State<LoginPage> {
                                 onChanged: (_) => setState(() {}),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
-                                  hintText: "Email or Phone number",
+                                  hintText: "Email",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
                                 ),
                               ),
@@ -358,11 +359,22 @@ class _LoginPageState extends State<LoginPage> {
                               child: TextField(
                                 controller: _passwordController,
                                 onChanged: (_) => setState(() {}),
-                                obscureText: true,
+                                obscureText: !_passwordVisible, // Use a state variable to control visibility
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Password",
                                   hintStyle: TextStyle(color: Colors.grey[700]),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                                      color: Colors.grey[700],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _passwordVisible = !_passwordVisible;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
