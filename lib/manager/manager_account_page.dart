@@ -3,14 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
+import 'package:cloudd_flutter/manager/widgets/bottom_navigation_widget.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/models/user.dart';
 
 class ManagerAccountPage extends StatelessWidget {
   const ManagerAccountPage({super.key});
 
-    String _formatJoinedDate(Timestamp? ts) {
+  String _formatJoinedDate(Timestamp? ts) {
     if (ts == null) return "Joined -";
     final dt = ts.toDate();
     return "Joined ${DateFormat('d MMM yyyy').format(dt)}";
@@ -22,9 +22,7 @@ class ManagerAccountPage extends StatelessWidget {
 
     if (uid == null) {
       return const Scaffold(
-        body: SafeArea(
-          child: Center(child: Text("Not logged in")),
-        ),
+        body: SafeArea(child: Center(child: Text("Not logged in"))),
       );
     }
 
@@ -54,9 +52,9 @@ class ManagerAccountPage extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      //Profile image from profile_image_url
+                      // Profile image from profile_image_url
                       CircleAvatar(
-                        radius: 40,
+                        radius: 60,
                         backgroundColor: Theme.of(context).colorScheme.surface,
                         backgroundImage: (appUser.profileImageUrl != null &&
                                 appUser.profileImageUrl!.trim().isNotEmpty)
@@ -66,7 +64,7 @@ class ManagerAccountPage extends StatelessWidget {
                                 appUser.profileImageUrl!.trim().isEmpty)
                             ? Icon(
                                 Icons.person,
-                                size: 50,
+                                size: 70,
                                 color: Theme.of(context)
                                     .iconTheme
                                     .color
@@ -77,12 +75,12 @@ class ManagerAccountPage extends StatelessWidget {
 
                       const SizedBox(width: 15),
 
-                      //User info from Firestore
+                      // Manager info from Firestore
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            appUser.name.isNotEmpty ? appUser.name : "Unnamed User",
+                            appUser.name.isNotEmpty ? appUser.name : "Unnamed Manager",
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -91,9 +89,12 @@ class ManagerAccountPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
 
-                          const Text(
-                            "",
-                            style: TextStyle(fontSize: 16),
+                          Text(
+                            "Manager",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
                           ),
 
                           const SizedBox(height: 4),
@@ -108,11 +109,6 @@ class ManagerAccountPage extends StatelessWidget {
                       ),
 
                       const Spacer(),
-
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.edit, size: 28),
-                      ),
                     ],
                   ),
 
