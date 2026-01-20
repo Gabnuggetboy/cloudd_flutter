@@ -435,6 +435,10 @@ class _AddContentPageState extends State<AddContentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appBarActionColor =
+        theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Content'),
@@ -445,7 +449,8 @@ class _AddContentPageState extends State<AddContentPage> {
               if (!mounted) return;
               Navigator.pop(context, _buildResultMap());
             },
-            child: const Text('Done', style: TextStyle(color: Colors.white)),
+            style: TextButton.styleFrom(foregroundColor: appBarActionColor),
+            child: const Text('Done'),
           ),
         ],
       ),

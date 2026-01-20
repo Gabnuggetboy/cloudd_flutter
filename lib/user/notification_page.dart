@@ -129,7 +129,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               child: CircularProgressIndicator(),
                             );
                           }
-
+                          
                           return _NotificationList(
                             docs: docs,
                             onAccept: _acceptInvite,

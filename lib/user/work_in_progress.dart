@@ -11,16 +11,22 @@ class WorkInProgressPage extends StatefulWidget {
 class _WorkInProgressPageState extends State<WorkInProgressPage> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-      automaticallyImplyLeading: false, // ---> Removes back button
+        automaticallyImplyLeading: false, // ---> Removes back button
         elevation: 0,
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
-        title: const Text(
+        foregroundColor: colors.onSurface,
+        title: Text(
           "Coming Soon",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colors.onSurface,
+          ),
         ),
       ),
       body: Center(
@@ -33,35 +39,34 @@ class _WorkInProgressPageState extends State<WorkInProgressPage> {
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.withOpacity(0.1),
+                  color: colors.primary.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.construction_rounded,
                   size: 64,
-                  color: Colors.deepPurple,
+                  color: colors.primary,
                 ),
               ),
               const SizedBox(height: 32),
 
               // Title
-              const Text(
+              Text(
                 "Work in Progress",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 26,
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: colors.onSurface,
                 ),
               ),
               const SizedBox(height: 12),
 
               // Description
-              const Text(
+              Text(
                 "We're actively building this feature.\nCheck back soon for something awesome!",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurface.withOpacity(0.7),
                   height: 1.6,
                 ),
               ),
@@ -69,21 +74,23 @@ class _WorkInProgressPageState extends State<WorkInProgressPage> {
 
               // Progress indicator
               Column(
-                children: const [
+                children: [
                   LinearProgressIndicator(
                     minHeight: 6,
-                    backgroundColor: Color(0xFFE0E0E0),
+                    backgroundColor: colors.surfaceVariant,
+                    valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Text(
                     "Development in progress",
-                    style: TextStyle(fontSize: 12, color: Colors.black45),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurface.withOpacity(0.6),
+                    ),
                   ),
                 ],
               ),
 
               const SizedBox(height: 48),
-          
             ],
           ),
         ),

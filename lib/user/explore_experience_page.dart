@@ -818,6 +818,9 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   @override
   Widget build(BuildContext context) {
     final displayName = experience?.name ?? widget.experienceName;
+    final theme = Theme.of(context);
+    final appBarActionColor =
+        theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface;
 
     return WillPopScope(
       onWillPop: () async {
@@ -907,10 +910,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                 // Refresh queue state after returning
                 await _refreshQueueState();
               },
-              child: const Text(
-                'View queue',
-                style: TextStyle(color: Colors.white),
-              ),
+              style: TextButton.styleFrom(foregroundColor: appBarActionColor),
+              child: const Text('View queue'),
             ),
           ],
         ),

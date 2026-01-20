@@ -121,9 +121,9 @@ class _HomePageState extends State<HomePage> {
         .where(FieldPath.documentId, whereIn: experienceIds)
         .get();
 
-    
-    final signedUpExperiences =
-        experiencesSnap.docs.map((d) => Experience.fromDoc(d)).toList();
+    final signedUpExperiences = experiencesSnap.docs
+        .map((d) => Experience.fromDoc(d))
+        .toList();
 
     final Map<String, int> categoryCount = {};
     for (final exp in signedUpExperiences) {
@@ -219,6 +219,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    
     final fullName = (_currentUserProfile?.name.trim().isNotEmpty ?? false)
         ? _currentUserProfile!.name.trim()
         : "User";
@@ -248,7 +251,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Text(
                     "Find The Best Experiences for You",
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
@@ -261,14 +264,14 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         "Categories",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       // Text(
                       //   "See all",
-                      //   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      //   style: theme.textTheme.bodyMedium?.copyWith(
                       //     fontSize: 15,
                       //     fontWeight: FontWeight.w500,
                       //   ),
@@ -307,7 +310,7 @@ class _HomePageState extends State<HomePage> {
                           return Center(
                             child: Text(
                               'No categories',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: theme.textTheme.bodyMedium,
                             ),
                           );
                         }
@@ -325,7 +328,9 @@ class _HomePageState extends State<HomePage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => CategoryExperiencesPage(category: category),
+                                      builder: (_) => CategoryExperiencesPage(
+                                        category: category,
+                                      ),
                                     ),
                                   );
                                 },
@@ -333,7 +338,8 @@ class _HomePageState extends State<HomePage> {
                                   width: 75,
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       FutureBuilder<String>(
                                         future: getCategoryImageUrl(category),
@@ -343,10 +349,17 @@ class _HomePageState extends State<HomePage> {
                                             height: 65,
                                             decoration: const BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: Color.fromRGBO(143, 148, 251, 1),
+                                              color: Color.fromRGBO(
+                                                143,
+                                                148,
+                                                251,
+                                                1,
+                                              ),
                                             ),
                                             clipBehavior: Clip.antiAlias,
-                                            child: snapshot.hasData && snapshot.data!.isNotEmpty
+                                            child:
+                                                snapshot.hasData &&
+                                                    snapshot.data!.isNotEmpty
                                                 ? Image.network(
                                                     snapshot.data!,
                                                     fit: BoxFit.cover,
@@ -366,7 +379,7 @@ class _HomePageState extends State<HomePage> {
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context)
+                                          style: theme
                                               .textTheme
                                               .bodySmall
                                               ?.copyWith(fontSize: 12),
@@ -391,7 +404,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         "Recommended for You",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -399,8 +412,9 @@ class _HomePageState extends State<HomePage> {
                       IconButton(
                         icon: const Icon(Icons.refresh),
                         tooltip: "Refresh recommendations",
-                        onPressed:
-                            _recommendedLoading ? null : _loadRecommendedExperiences,
+                        onPressed: _recommendedLoading
+                            ? null
+                            : _loadRecommendedExperiences,
                       ),
                     ],
                   ),
@@ -415,7 +429,7 @@ class _HomePageState extends State<HomePage> {
                         ? Center(
                             child: Text(
                               'No recommendations yet',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: theme.textTheme.bodyMedium,
                             ),
                           )
                         : ListView.builder(
@@ -442,9 +456,7 @@ class _HomePageState extends State<HomePage> {
                                   margin: const EdgeInsets.only(right: 15),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surface,
+                                    color: colors.surface,
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
@@ -456,9 +468,10 @@ class _HomePageState extends State<HomePage> {
                                               const BorderRadius.vertical(
                                                 top: Radius.circular(12),
                                               ),
-                                          child: (experience.imageUrl !=
-                                                      null &&
-                                                  experience.imageUrl!
+                                          child:
+                                              (experience.imageUrl != null &&
+                                                  experience
+                                                      .imageUrl!
                                                       .isNotEmpty)
                                               ? Image.network(
                                                   experience.imageUrl!,
@@ -486,7 +499,7 @@ class _HomePageState extends State<HomePage> {
                                               experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodyMedium
                                                   ?.copyWith(
@@ -497,7 +510,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(fontSize: 12),
@@ -521,7 +534,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         "Most Popular",
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -529,8 +542,9 @@ class _HomePageState extends State<HomePage> {
                       IconButton(
                         icon: const Icon(Icons.refresh),
                         tooltip: "Refresh popular experiences",
-                        onPressed:
-                            _popularLoading ? null : _loadMostPopularExperiences,
+                        onPressed: _popularLoading
+                            ? null
+                            : _loadMostPopularExperiences,
                       ),
                     ],
                   ),
@@ -545,7 +559,7 @@ class _HomePageState extends State<HomePage> {
                         ? Center(
                             child: Text(
                               'No popular experiences yet',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: theme.textTheme.bodyMedium,
                             ),
                           )
                         : ListView.builder(
@@ -572,9 +586,7 @@ class _HomePageState extends State<HomePage> {
                                   margin: const EdgeInsets.only(right: 15),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surface,
+                                    color: colors.surface,
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
@@ -586,9 +598,10 @@ class _HomePageState extends State<HomePage> {
                                               const BorderRadius.vertical(
                                                 top: Radius.circular(12),
                                               ),
-                                          child: (experience.imageUrl !=
-                                                      null &&
-                                                  experience.imageUrl!
+                                          child:
+                                              (experience.imageUrl != null &&
+                                                  experience
+                                                      .imageUrl!
                                                       .isNotEmpty)
                                               ? Image.network(
                                                   experience.imageUrl!,
@@ -616,7 +629,7 @@ class _HomePageState extends State<HomePage> {
                                               experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodyMedium
                                                   ?.copyWith(
@@ -627,7 +640,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(fontSize: 12),
@@ -648,7 +661,7 @@ class _HomePageState extends State<HomePage> {
                   // Recently Played Header
                   Text(
                     "Recently Played",
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
@@ -666,7 +679,7 @@ class _HomePageState extends State<HomePage> {
                           return Center(
                             child: Text(
                               'Error: ${snap.error}',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: theme.textTheme.bodyMedium,
                             ),
                           );
                         }
@@ -680,7 +693,7 @@ class _HomePageState extends State<HomePage> {
                           return Center(
                             child: Text(
                               'No recently played content',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: theme.textTheme.bodyMedium,
                             ),
                           );
                         }
@@ -750,9 +763,7 @@ class _HomePageState extends State<HomePage> {
                                       MediaQuery.of(context).size.width * 0.42,
                                   margin: const EdgeInsets.only(right: 10),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surface,
+                                    color: colors.surface,
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
@@ -829,7 +840,7 @@ class _HomePageState extends State<HomePage> {
                                           children: [
                                             Text(
                                               rp.boothName,
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(
@@ -842,12 +853,12 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               rp.device,
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(
                                                     fontSize: 10,
-                                                    color: Theme.of(context)
+                                                    color: theme
                                                         .textTheme
                                                         .bodySmall
                                                         ?.color
@@ -861,7 +872,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               rp.experienceName,
-                                              style: Theme.of(context)
+                                              style: theme
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(fontSize: 10),
@@ -884,12 +895,12 @@ class _HomePageState extends State<HomePage> {
                                                     : '${remainder}s';
                                                 return Text(
                                                   'Playtime: $playtimeText',
-                                                  style: Theme.of(context)
+                                                  style: theme
                                                       .textTheme
                                                       .bodySmall
                                                       ?.copyWith(
                                                         fontSize: 12,
-                                                        color: Theme.of(context)
+                                                        color: theme
                                                             .textTheme
                                                             .bodySmall
                                                             ?.color
