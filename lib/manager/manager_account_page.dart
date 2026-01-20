@@ -28,7 +28,10 @@ class ManagerAccountPage extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -55,19 +58,20 @@ class ManagerAccountPage extends StatelessWidget {
                       CircleAvatar(
                         radius: 60,
                         backgroundColor: Theme.of(context).colorScheme.surface,
-                        backgroundImage: (appUser.profileImageUrl != null &&
+                        backgroundImage:
+                            (appUser.profileImageUrl != null &&
                                 appUser.profileImageUrl!.trim().isNotEmpty)
                             ? NetworkImage(appUser.profileImageUrl!)
                             : null,
-                        child: (appUser.profileImageUrl == null ||
+                        child:
+                            (appUser.profileImageUrl == null ||
                                 appUser.profileImageUrl!.trim().isEmpty)
                             ? Icon(
                                 Icons.person,
                                 size: 70,
-                                color: Theme.of(context)
-                                    .iconTheme
-                                    .color
-                                    ?.withOpacity(0.6),
+                                color: Theme.of(
+                                  context,
+                                ).iconTheme.color?.withOpacity(0.6),
                               )
                             : null,
                       ),
@@ -79,7 +83,9 @@ class ManagerAccountPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            appUser.name.isNotEmpty ? appUser.name : "Unnamed Manager",
+                            appUser.name.isNotEmpty
+                                ? appUser.name
+                                : "Unnamed Manager",
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -88,11 +94,13 @@ class ManagerAccountPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
 
-                           Text(
+                          Text(
                             "Manager",
                             style: TextStyle(
                               fontSize: 16,
-                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                           ),
 
@@ -101,7 +109,9 @@ class ManagerAccountPage extends StatelessWidget {
                             _formatJoinedDate(appUser.createdAt),
                             style: TextStyle(
                               fontSize: 14,
-                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ],
@@ -109,6 +119,10 @@ class ManagerAccountPage extends StatelessWidget {
 
                       const Spacer(),
 
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.edit, size: 28),
+                      ),
                     ],
                   ),
 
@@ -135,7 +149,9 @@ class ManagerAccountPage extends StatelessWidget {
                           child: Text(
                             "See All",
                             style: TextStyle(
-                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                               decoration: TextDecoration.underline,
                             ),
                           ),

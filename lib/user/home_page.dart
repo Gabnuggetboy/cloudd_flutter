@@ -266,13 +266,13 @@ class _HomePageState extends State<HomePage> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      Text(
-                        "See all",
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      // Text(
+                      //   "See all",
+                      //   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      //     fontSize: 15,
+                      //     fontWeight: FontWeight.w500,
+                      //   ),
+                      // ),
                     ],
                   ),
 

@@ -176,6 +176,7 @@ class _SignUpPageState extends State<SignUpPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+    // Force light mode styling regardless of the global theme, cause dark mode is not supposed to affect theme of this page
   @override
   Widget build(BuildContext context) {
     return Theme(

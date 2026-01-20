@@ -135,7 +135,10 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
-
+/*
+Sdsda
+*/
+  // Force light mode styling regardless of the global theme, cause dark mode is not supposed to affect theme of this page
   @override
   Widget build(BuildContext context) {
     return Theme(
