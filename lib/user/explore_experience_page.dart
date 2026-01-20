@@ -50,6 +50,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
 
   String? _currentDeviceIP;
   final Map<String, String?> _queuedContentByDevice = {};
+  final Map<String, String?> _queuedBoothNameByDevice = {};
+  final Map<String, String?> _queuedLogoUrlByDevice = {};
   final Map<String, bool> _isAutoLaunchActiveByDevice = {};
   bool _isRunningStatusPolling = false;
 
@@ -60,6 +62,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     // Initialize queue tracking for all devices
     for (final device in devices) {
       _queuedContentByDevice[device] = null;
+      _queuedBoothNameByDevice[device] = null;
+      _queuedLogoUrlByDevice[device] = null;
       _isAutoLaunchActiveByDevice[device] = false;
     }
     _loadAllData();
@@ -146,8 +150,15 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     }
   }
 
-  void _startAutoLaunchMonitor(String device, String contentName) {
+  void _startAutoLaunchMonitor(
+    String device,
+    String contentName, {
+    String? boothName,
+    String? logoUrl,
+  }) {
     _queuedContentByDevice[device] = contentName;
+    _queuedBoothNameByDevice[device] = boothName ?? contentName;
+    _queuedLogoUrlByDevice[device] = logoUrl;
     _isAutoLaunchActiveByDevice[device] = true;
     _checkAndLaunchWhenTurn(device);
   }
@@ -171,7 +182,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         if (positionResult.queuePosition == 0) {
           // User's turn! Auto-launch the content
           _isAutoLaunchActiveByDevice[device] = false;
-          await launchContent(device, _queuedContentByDevice[device]!);
+          await launchContent(
+            device,
+            _queuedContentByDevice[device]!,
+            boothName: _queuedBoothNameByDevice[device],
+            logoUrl: _queuedLogoUrlByDevice[device],
+          );
           // Don't clear the queued content here, let the user manually dequeue after
         } else {
           // Not yet user's turn, check again soon
@@ -199,6 +215,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
           if (positionResult.queuePosition == -1) {
             setState(() {
               _queuedContentByDevice[device] = null;
+              _queuedBoothNameByDevice[device] = null;
+              _queuedLogoUrlByDevice[device] = null;
               _isAutoLaunchActiveByDevice[device] = false;
             });
           }
@@ -397,7 +415,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                     );
                     if (result.success) {
                       // Start monitoring for when it's user's turn
-                      _startAutoLaunchMonitor(device, contentName);
+                      _startAutoLaunchMonitor(
+                        device,
+                        contentName,
+                        boothName: boothName ?? contentName,
+                        logoUrl: logoUrl,
+                      );
                     }
                   } catch (e) {
                     debugPrint('Error enqueuing: $e');
@@ -413,6 +436,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                         contentName: contentName,
                         queuedContentMap: Map<String, String?>.from(
                           _queuedContentByDevice,
+                        ),
+                        runningStartMap: Map<String, DateTime?>.from(
+                          runningStart,
+                        ),
+                        runningRecentDocIdMap: Map<String, String?>.from(
+                          runningRecentDocId,
                         ),
                       ),
                     ),
@@ -667,6 +696,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                           builder: (_) => QueueingPage(
                             device: device,
                             contentName: contentName,
+                            runningStartMap: Map<String, DateTime?>.from(
+                              runningStart,
+                            ),
+                            runningRecentDocIdMap: Map<String, String?>.from(
+                              runningRecentDocId,
+                            ),
                           ),
                         ),
                       );
@@ -859,6 +894,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                     builder: (_) => QueueingPage(
                       queuedContentMap: Map<String, String?>.from(
                         _queuedContentByDevice,
+                      ),
+                      runningStartMap: Map<String, DateTime?>.from(
+                        runningStart,
+                      ),
+                      runningRecentDocIdMap: Map<String, String?>.from(
+                        runningRecentDocId,
                       ),
                     ),
                   ),

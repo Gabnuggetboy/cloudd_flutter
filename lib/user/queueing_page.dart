@@ -7,12 +7,16 @@ class QueueingPage extends StatefulWidget {
   final String? device;
   final String? contentName;
   final Map<String, String?>? queuedContentMap;
+  final Map<String, DateTime?>? runningStartMap;
+  final Map<String, String?>? runningRecentDocIdMap;
 
   const QueueingPage({
     super.key,
     this.device,
     this.contentName,
     this.queuedContentMap,
+    this.runningStartMap,
+    this.runningRecentDocIdMap,
   });
 
   @override
@@ -33,6 +37,10 @@ class _QueueingPageState extends State<QueueingPage> {
   final Map<String, int> queuePosition = {}; // Track position per device
   final Map<String, String?> runningClientIP =
       {}; // Track running client IP per device
+
+  // Track playtime for recently played
+  final Map<String, DateTime?> runningStart = {};
+  final Map<String, String?> runningRecentDocId = {};
 
   String? _currentClientIP; // This user's client IP (per backend)
 
@@ -80,6 +88,22 @@ class _QueueingPageState extends State<QueueingPage> {
       // Use passed single device/content (from Add to queue dialog)
       selectedDevice = widget.device!;
       queuedContent[selectedDevice] = widget.contentName;
+    }
+
+    // Initialize playtime tracking from passed parameters (for content launched from explore page)
+    if (widget.runningStartMap != null) {
+      for (final entry in widget.runningStartMap!.entries) {
+        if (entry.value != null) {
+          runningStart[entry.key] = entry.value;
+        }
+      }
+    }
+    if (widget.runningRecentDocIdMap != null) {
+      for (final entry in widget.runningRecentDocIdMap!.entries) {
+        if (entry.value != null) {
+          runningRecentDocId[entry.key] = entry.value;
+        }
+      }
     }
 
     _loadQueueInfo();
@@ -486,7 +510,7 @@ class _QueueingPageState extends State<QueueingPage> {
                 queuedContent[selectedDevice]!,
               );
 
-              await RecentlyPlayedService.addRecentlyPlayed(
+              final docId = await RecentlyPlayedService.addRecentlyPlayed(
                 userId: uid,
                 device: selectedDevice,
                 boothName: queuedContent[selectedDevice]!,
@@ -494,6 +518,10 @@ class _QueueingPageState extends State<QueueingPage> {
                 experienceName: '', // Empty since we don't have it from queue
                 logoUrl: iconUrl,
               );
+
+              // Store start time and doc ID for playtime tracking
+              runningStart[selectedDevice] = DateTime.now();
+              runningRecentDocId[selectedDevice] = docId;
             } catch (e) {
               debugPrint('RecentlyPlayed error: $e');
             }
@@ -547,6 +575,20 @@ class _QueueingPageState extends State<QueueingPage> {
       );
 
       if (mounted) {
+        // Update playtime before showing snackbar
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        final start = runningStart[selectedDevice];
+        final docId = runningRecentDocId[selectedDevice];
+
+        if (uid != null && start != null && docId != null) {
+          final seconds = DateTime.now().difference(start).inSeconds;
+          await RecentlyPlayedService.updatePlaytimeByDocId(
+            userId: uid,
+            docId: docId,
+            seconds: seconds,
+          );
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.message),
@@ -566,6 +608,8 @@ class _QueueingPageState extends State<QueueingPage> {
             runningContent[selectedDevice] = null;
             runningContentIconUrl[selectedDevice] = null;
             runningClientIP[selectedDevice] = null;
+            runningStart.remove(selectedDevice);
+            runningRecentDocId.remove(selectedDevice);
           });
           // Reload queue info to get fresh data from server
           await _loadQueueInfo();
