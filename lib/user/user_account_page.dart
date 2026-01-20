@@ -2,10 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/models/user.dart';
+import 'package:cloudd_flutter/user/explore_experience_page.dart';
+import 'package:cloudd_flutter/models/experience.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -15,6 +16,46 @@ class AccountPage extends StatelessWidget {
     final dt = ts.toDate();
     return "Joined ${DateFormat('d MMM yyyy').format(dt)}";
   }
+
+  Stream<List<Experience>> streamSignedUpExperiences(String uid) async* {
+    await for (final signupsSnap in FirebaseFirestore.instance
+        .collection('experience_signups')
+        .where('userId', isEqualTo: uid)
+        .snapshots()) {
+      final ids = signupsSnap.docs
+          .map((d) => (d.data()['experienceId'] ?? '').toString())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      if (ids.isEmpty) {
+        yield [];
+        continue;
+      }
+
+      // Firestore whereIn limit = 10 -> chunk
+      const chunkSize = 10;
+      final List<Experience> results = [];
+
+      for (int i = 0; i < ids.length; i += chunkSize) {
+        final chunk = ids.sublist(i, (i + chunkSize).clamp(0, ids.length));
+
+        final expSnap = await FirebaseFirestore.instance
+            .collection('Experiences')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .where('enabled', isEqualTo: true)
+            .get();
+
+        results.addAll(expSnap.docs.map((d) => Experience.fromDoc(d)));
+      }
+
+      // keep stable ordering
+      results.sort((a, b) => ids.indexOf(a.id).compareTo(ids.indexOf(b.id)));
+
+      yield results;
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -122,36 +163,124 @@ class AccountPage extends StatelessWidget {
                   const SizedBox(height: 30),
 
                   const Text(
-                    "Display Collection",
+                    "Signed Up",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 15),
 
-                  Row(
-                    children: [
-                      _displayBox(context),
-                      const SizedBox(width: 10),
-                      _displayBox(context),
-                      const SizedBox(width: 10),
-                      _displayBox(context),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Container(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            "See All",
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).textTheme.bodyMedium?.color,
-                              decoration: TextDecoration.underline,
+                  SizedBox(
+                    height: 190,
+                    child: StreamBuilder<List<Experience>>(
+                      stream: streamSignedUpExperiences(uid),
+                      builder: (context, snap) {
+                        if (snap.hasError) {
+                          return Center(
+                            child: Text(
+                              'Error: ${snap.error}',
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
+                          );
+                        }
+
+                        if (!snap.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final items = snap.data!;
+                        if (items.isEmpty) {
+                          return Text(
+                            "No signups yet",
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          );
+                        }
+
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final experience = items[index];
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ExploreExperiencePage(
+                                      experienceId: experience.id,
+                                      experienceName: experience.name,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: MediaQuery.of(context).size.width * 0.6,
+                                margin: const EdgeInsets.only(right: 15),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Theme.of(context).colorScheme.surface,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(12),
+                                        ),
+                                        child: (experience.imageUrl != null &&
+                                                experience.imageUrl!.isNotEmpty)
+                                            ? Image.network(
+                                                experience.imageUrl!,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : Container(
+                                                color: Colors.grey[300],
+                                                child: const Center(
+                                                  child: Icon(Icons.image, size: 40),
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            experience.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
+
 
                   const SizedBox(height: 40),
 
