@@ -3,7 +3,7 @@ import 'package:cloudd_flutter/user/notification_page.dart';
 import 'package:cloudd_flutter/user/home_page.dart';
 import 'package:cloudd_flutter/user/trading_page.dart';
 import 'package:cloudd_flutter/user/user_account_page.dart';
-// import 'package:cloudd_flutter/user/camera_page.dart';
+import 'package:cloudd_flutter/user/camera_page.dart';
 import 'package:cloudd_flutter/user/work_in_progress.dart';
 
 
@@ -13,12 +13,12 @@ class BottomNavigationWidget extends StatefulWidget {
   final BuildContext context;
   final double homeIconSize;
   final double tradingIconSize;
-  // final double cameraIconSize;
+  final double cameraIconSize;
   final double notificationIconSize;
   final double accountIconSize;
   final String homeLabel;
   final String tradingLabel;
-  // final String cameraLabel;
+  final String cameraLabel;
   final String notificationLabel;
   final String accountLabel;
 
@@ -28,12 +28,12 @@ class BottomNavigationWidget extends StatefulWidget {
     required this.context,
     this.homeIconSize = 45,
     this.tradingIconSize = 45,
-    // this.cameraIconSize = 45,
+    this.cameraIconSize = 45,
     this.notificationIconSize = 45,
     this.accountIconSize = 45,
     this.homeLabel = 'Home',
     this.tradingLabel = 'Trading',
-    // this.cameraLabel = 'Camera',
+    this.cameraLabel = 'AR Viewer',
     this.notificationLabel = 'Notifications',
     this.accountLabel = 'Account',
   });
@@ -145,65 +145,28 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                 ),
               ],
             ),
-            // Column(
-            //   mainAxisSize: MainAxisSize.min,
-            //   children: [
-            //     IconButton(
-            //       icon: Icon(
-            //         _selectedIndex == 2
-            //             ? Icons.camera_alt
-            //             : Icons.camera_alt_outlined,
-            //         size: widget.cameraIconSize,
-            //       ),
-            //       onPressed: () {
-            //         _onTap(2);
-            //         Navigator.push(
-            //           context,
-            //           MaterialPageRoute(
-            //             builder: (context) => const CameraPage(),
-            //           ),
-            //         );
-            //       },
-            //     ),
-            //     Text(
-            //       widget.cameraLabel,
-            //       style: TextStyle(
-            //         fontSize: 12,
-            //         color: Theme.of(context).textTheme.bodyMedium?.color,
-            //       ),
-            //     ),
-            //   ],
-            // ),
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   icon: Icon(
-                    _selectedIndex == 3
-                        ? Icons.notifications
-                        : Icons.notifications_outlined,
-                    size: widget.notificationIconSize,
+                    _selectedIndex == 2
+                        ? Icons.camera_alt
+                        : Icons.camera_alt_outlined,
+                    size: widget.cameraIconSize,
                   ),
                   onPressed: () {
-                    _onTap(3);
-                    // Only navigate if not already on NotificationsPage [NOW WORK IN PROGRESS PAGE]
-                    if (widget.context.widget.runtimeType !=
-                        WorkInProgressPage) {
-                      Navigator.pushReplacement(
-                        context,
-                        PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const WorkInProgressPage(),
-                          transitionDuration: Duration.zero,
-                          reverseTransitionDuration: Duration.zero,
-                        ),
-                      );
-                    }
+                    _onTap(2);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CameraPage(),
+                      ),
+                    );
                   },
                 ),
                 Text(
-                  widget.notificationLabel,
+                  widget.cameraLabel,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -211,6 +174,43 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                 ),
               ],
             ),
+            // Column(
+            //   mainAxisSize: MainAxisSize.min,
+            //   children: [
+            //     IconButton(
+            //       icon: Icon(
+            //         _selectedIndex == 3
+            //             ? Icons.notifications
+            //             : Icons.notifications_outlined,
+            //         size: widget.notificationIconSize,
+            //       ),
+            //       onPressed: () {
+            //         _onTap(3);
+            //         // Only navigate if not already on NotificationsPage [NOW WORK IN PROGRESS PAGE]
+            //         if (widget.context.widget.runtimeType !=
+            //             WorkInProgressPage) {
+            //           Navigator.pushReplacement(
+            //             context,
+            //             PageRouteBuilder(
+            //               pageBuilder:
+            //                   (context, animation, secondaryAnimation) =>
+            //                       const WorkInProgressPage(),
+            //               transitionDuration: Duration.zero,
+            //               reverseTransitionDuration: Duration.zero,
+            //             ),
+            //           );
+            //         }
+            //       },
+            //     ),
+            //     Text(
+            //       widget.notificationLabel,
+            //       style: TextStyle(
+            //         fontSize: 12,
+            //         color: Theme.of(context).textTheme.bodyMedium?.color,
+            //       ),
+            //     ),
+            //   ],
+            // ),
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [

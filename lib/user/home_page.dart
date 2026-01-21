@@ -237,7 +237,7 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TopSettingsTitleWidget(showCloudd: true, showSettings: true),
+                  TopSettingsTitleWidget(showCloudd: true, showNotificationIcon: true,),
 
                   const SizedBox(height: 10),
 
