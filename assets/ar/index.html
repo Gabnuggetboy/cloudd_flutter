@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Make page transparent instead of black -->
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      a-scene {
+        background: transparent !important;
+      }
+    </style>
+
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  </head>
+
+  <body>
+    <a-scene
+      mindar-image="imageTargetSrc: targets.mind; autoStart: true;"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+      renderer="colorManagement: true; alpha: true"
+      embedded
+    >
+      <a-assets>
+        <img id="overlay" src="overlay.png" />
+      </a-assets>
+
+      <a-camera
+        position="0 0 0"
+        look-controls="enabled: false"
+      ></a-camera>
+
+      <!-- Attach overlay to target index 0 -->
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-plane
+          src="#overlay"
+          position="0 0 0"
+          width="1"
+          height="0.6"
+          material="transparent: true; opacity: 1"
+        ></a-plane>
+      </a-entity>
+    </a-scene>
+  </body>
+</html>

@@ -5,8 +5,7 @@ import 'package:cloudd_flutter/user/trading_page.dart';
 import 'package:cloudd_flutter/user/user_account_page.dart';
 // import 'package:cloudd_flutter/user/camera_page.dart';
 import 'package:cloudd_flutter/user/work_in_progress.dart';
-
-
+import 'package:cloudd_flutter/user/mindar_page.dart';
 
 class BottomNavigationWidget extends StatefulWidget {
   final Function(int)? onIconTap;
@@ -123,15 +122,19 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                     _onTap(1);
                     // Only navigate if not already on TradingPage [NOW WORK IN PROGRESS PAGE]
                     if (widget.context.widget.runtimeType != WorkInProgressPage) {
-                      Navigator.pushReplacement(
+                      // Navigator.pushReplacement(
+                      //   context,
+                      //   PageRouteBuilder(
+                      //     pageBuilder:
+                      //         (context, animation, secondaryAnimation) =>
+                      //             const WorkInProgressPage(),
+                      //     transitionDuration: Duration.zero,
+                      //     reverseTransitionDuration: Duration.zero,
+                      //   ),
+                      // );
+                      Navigator.push(
                         context,
-                        PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const WorkInProgressPage(),
-                          transitionDuration: Duration.zero,
-                          reverseTransitionDuration: Duration.zero,
-                        ),
+                        MaterialPageRoute(builder: (_) => const MindARPage()),
                       );
                     }
                   },

@@ -119,10 +119,6 @@ class ManagerAccountPage extends StatelessWidget {
 
                       const Spacer(),
 
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.edit, size: 28),
-                      ),
                     ],
                   ),
 
