@@ -41,9 +41,6 @@ class _LoginPageState extends State<LoginPage> {
   bool get _isFormFilled =>
       _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
 
-  // ---------------------------------------
-  // LOGIN FUNCTION
-  // ---------------------------------------
   Future<void> loginUser() async {
     if (_isLoading) return; // Prevent multiple calls
 
