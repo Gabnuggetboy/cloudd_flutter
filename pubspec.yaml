@@ -83,8 +83,11 @@ flutter:
   assets:
     - assets/images/
     - assets/ar/index.html
-    - assets/ar/targets.mind
-    - assets/ar/overlay.png
+    - assets/ar/targets_new.mind
+    - assets/ar/img_1.png
+    - assets/ar/img_2.png
+    - assets/ar/img_3.png
+    - assets/ar/img_4.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

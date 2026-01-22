@@ -120,7 +120,7 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                   ),
                   onPressed: () {
                     _onTap(1);
-                    // Only navigate if not already on TradingPage [NOW WORK IN PROGRESS PAGE]
+                    // Only navigate if not already on TradingPage [NOW MIND AR PAGE]
                     if (widget.context.widget.runtimeType != WorkInProgressPage) {
                       // Navigator.pushReplacement(
                       //   context,

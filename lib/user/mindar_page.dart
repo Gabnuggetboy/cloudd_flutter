@@ -73,7 +73,7 @@ class _MindARPageState extends State<MindARPage> {
       }
     };
 
-    _server = await shelf_io.serve(handler, '127.0.0.1', 0); // random free port
+    _server = await shelf_io.serve(handler, '127.0.0.1', 0);
     final url = 'http://127.0.0.1:${_server!.port}/index.html';
 
     // 2) WebView
@@ -99,7 +99,6 @@ class _MindARPageState extends State<MindARPage> {
     if (!mounted) return;
     setState(() => _controller = controller);
 
-    // 3) Load via http (NOT file://)
     await controller.loadRequest(Uri.parse(url));
   }
 
