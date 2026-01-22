@@ -161,7 +161,7 @@ Sdsda
             borderSide: const BorderSide(color: Color(0xFF8F94FB), width: 2),
           ),
         ),
-      ),
+      ), 
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SingleChildScrollView(

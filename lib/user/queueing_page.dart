@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 import 'package:cloudd_flutter/services/recently_played_service.dart';
 
 class QueueingPage extends StatefulWidget {
@@ -449,16 +450,12 @@ class _QueueingPageState extends State<QueueingPage> {
       ),
       clipBehavior: Clip.antiAlias,
       child: iconUrl != null
-          ? Image.network(
-              iconUrl,
+          ? ImageCacheService().getCachedImage(
+              imageUrl: iconUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Center(
+              errorWidget: Center(
                 child: Icon(Icons.vrpano, size: 60, color: Colors.grey[600]),
               ),
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(child: CircularProgressIndicator());
-              },
             )
           : Center(
               child: Icon(Icons.vrpano, size: 60, color: Colors.grey[600]),
@@ -624,6 +621,7 @@ class _QueueingPageState extends State<QueueingPage> {
     }
   }
 
+  //need to make it so that when user exits/closes app, they also leave queue,
   Future<void> _leaveQueue() async {
     if (queuedContent[selectedDevice] == null) return;
 
@@ -731,27 +729,24 @@ class _QueueingPageState extends State<QueueingPage> {
                                 //     : Colors.transparent,
                               ),
                               padding: const EdgeInsets.all(4),
-                              child: ClipRRect(
+                              child: ImageCacheService().getCachedImage(
+                                imageUrl:
+                                    DeviceLoadingService.deviceLogos[device]!,
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.contain,
                                 borderRadius: BorderRadius.circular(6),
-                                child: Image.network(
-                                  DeviceLoadingService.deviceLogos[device]!,
+                                errorWidget: Container(
                                   width: 64,
                                   height: 64,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      width: 64,
-                                      height: 64,
-                                      color: Colors.grey[300],
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.vrpano,
-                                          size: 32,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  color: Colors.grey[300],
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.vrpano,
+                                      size: 32,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -807,15 +802,11 @@ class _QueueingPageState extends State<QueueingPage> {
                                               if (snapshot.connectionState ==
                                                       ConnectionState.done &&
                                                   snapshot.data != null) {
-                                                return Image.network(
-                                                  snapshot.data!,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder:
-                                                      (
-                                                        context,
-                                                        error,
-                                                        stackTrace,
-                                                      ) => Center(
+                                                return ImageCacheService()
+                                                    .getCachedImage(
+                                                      imageUrl: snapshot.data!,
+                                                      fit: BoxFit.cover,
+                                                      errorWidget: Center(
                                                         child: Icon(
                                                           Icons.vrpano,
                                                           size: 24,
@@ -823,7 +814,7 @@ class _QueueingPageState extends State<QueueingPage> {
                                                               Colors.grey[600],
                                                         ),
                                                       ),
-                                                );
+                                                    );
                                               } else {
                                                 return Center(
                                                   child: Icon(

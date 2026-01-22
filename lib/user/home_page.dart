@@ -9,6 +9,7 @@ import 'package:cloudd_flutter/models/recently_played.dart';
 import 'package:cloudd_flutter/models/experience.dart';
 import 'package:cloudd_flutter/models/user.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:math';
@@ -237,7 +238,7 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TopSettingsTitleWidget(showCloudd: true, showSettings: true),
+                  TopSettingsTitleWidget(showCloudd: true, showNotificationIcon: true),
 
                   const SizedBox(height: 10),
 
@@ -360,9 +361,11 @@ class _HomePageState extends State<HomePage> {
                                             child:
                                                 snapshot.hasData &&
                                                     snapshot.data!.isNotEmpty
-                                                ? Image.network(
-                                                    snapshot.data!,
+                                                ? ImageCacheService().getCachedImage(
+                                                    imageUrl: snapshot.data!,
                                                     fit: BoxFit.cover,
+                                                    width: 65,
+                                                    height: 65,
                                                   )
                                                 : const Icon(
                                                     Icons.category,
@@ -473,8 +476,8 @@ class _HomePageState extends State<HomePage> {
                                                   experience
                                                       .imageUrl!
                                                       .isNotEmpty)
-                                              ? Image.network(
-                                                  experience.imageUrl!,
+                                              ? ImageCacheService().getCachedImage(
+                                                  imageUrl: experience.imageUrl!,
                                                   width: double.infinity,
                                                   fit: BoxFit.cover,
                                                 )
@@ -603,8 +606,8 @@ class _HomePageState extends State<HomePage> {
                                                   experience
                                                       .imageUrl!
                                                       .isNotEmpty)
-                                              ? Image.network(
-                                                  experience.imageUrl!,
+                                              ? ImageCacheService().getCachedImage(
+                                                  imageUrl: experience.imageUrl!,
                                                   width: double.infinity,
                                                   fit: BoxFit.cover,
                                                 )
@@ -787,36 +790,23 @@ class _HomePageState extends State<HomePage> {
                                                 top: Radius.circular(12),
                                               ),
                                           child: displayUrl != null
-                                              ? Image.network(
-                                                  displayUrl,
+                                              ? ImageCacheService().getCachedImage(
+                                                  imageUrl: displayUrl,
                                                   fit: BoxFit.cover,
-                                                  errorBuilder:
-                                                      (
-                                                        context,
-                                                        error,
-                                                        stackTrace,
-                                                      ) => Container(
-                                                        color: const Color(
-                                                          0xFFEFEFEF,
-                                                        ),
-                                                        child: const Center(
-                                                          child: Icon(
-                                                            Icons.image,
-                                                            size: 40,
-                                                            color: Colors.grey,
-                                                          ),
-                                                        ),
+                                                  width: double.infinity,
+                                                  height: 100,
+                                                  errorWidget: Container(
+                                                    color: const Color(
+                                                      0xFFEFEFEF,
+                                                    ),
+                                                    child: const Center(
+                                                      child: Icon(
+                                                        Icons.image,
+                                                        size: 40,
+                                                        color: Colors.grey,
                                                       ),
-                                                  loadingBuilder:
-                                                      (context, child, prog) {
-                                                        if (prog == null) {
-                                                          return child;
-                                                        }
-                                                        return const Center(
-                                                          child:
-                                                              CircularProgressIndicator(),
-                                                        );
-                                                      },
+                                                    ),
+                                                  ),
                                                 )
                                               : Container(
                                                   color: const Color(

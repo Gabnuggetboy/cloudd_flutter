@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 import 'explore_experience_page.dart';
 
 class CategoryExperiencesPage extends StatelessWidget {
   final String category;
 
-  const CategoryExperiencesPage({
-    super.key,
-    required this.category,
-  });
+  const CategoryExperiencesPage({super.key, required this.category});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(category),
-      ),
+      appBar: AppBar(title: Text(category)),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('Experiences')
@@ -34,9 +30,7 @@ class CategoryExperiencesPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text('No experiences in this category'),
-            );
+            return const Center(child: Text('No experiences in this category'));
           }
 
           return ListView.builder(
@@ -47,8 +41,7 @@ class CategoryExperiencesPage extends StatelessWidget {
               final data = doc.data() as Map<String, dynamic>;
 
               final name = data['name'] ?? 'Untitled Experience';
-              final boothsCount =
-                  (data['booths'] as List?)?.length ?? 0;
+              final boothsCount = (data['booths'] as List?)?.length ?? 0;
               final imageUrl = data['imageUrl'];
               final lastUpdated = data['last_updated'] as Timestamp?;
               final lastUpdatedString = lastUpdated != null
@@ -84,13 +77,12 @@ class CategoryExperiencesPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           image: imageUrl != null
                               ? DecorationImage(
-                                  image: NetworkImage(imageUrl),
+                                  image: ImageCacheService()
+                                      .getCachedImageProvider(imageUrl),
                                   fit: BoxFit.cover,
                                 )
                               : null,
-                          color: imageUrl == null
-                              ? Colors.grey[300]
-                              : null,
+                          color: imageUrl == null ? Colors.grey[300] : null,
                         ),
                       ),
 
@@ -105,10 +97,9 @@ class CategoryExperiencesPage extends StatelessWidget {
                               "$boothsCount Booths",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -124,20 +115,16 @@ class CategoryExperiencesPage extends StatelessWidget {
                               "Last Updated: $lastUpdatedString",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                             ),
                           ],
                         ),
                       ),
 
-                      const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                      ),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
                     ],
                   ),
                 ),

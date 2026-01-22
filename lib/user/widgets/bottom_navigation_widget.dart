@@ -177,43 +177,43 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
             //     ),
             //   ],
             // ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _selectedIndex == 3
-                        ? Icons.notifications
-                        : Icons.notifications_outlined,
-                    size: widget.notificationIconSize,
-                  ),
-                  onPressed: () {
-                    _onTap(3);
-                    // Only navigate if not already on NotificationsPage [NOW WORK IN PROGRESS PAGE]
-                    if (widget.context.widget.runtimeType !=
-                        WorkInProgressPage) {
-                      Navigator.pushReplacement(
-                        context,
-                        PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const WorkInProgressPage(),
-                          transitionDuration: Duration.zero,
-                          reverseTransitionDuration: Duration.zero,
-                        ),
-                      );
-                    }
-                  },
-                ),
-                Text(
-                  widget.notificationLabel,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-              ],
-            ),
+            // Column(
+            //   mainAxisSize: MainAxisSize.min,
+            //   children: [
+            //     IconButton(
+            //       icon: Icon(
+            //         _selectedIndex == 3
+            //             ? Icons.notifications
+            //             : Icons.notifications_outlined,
+            //         size: widget.notificationIconSize,
+            //       ),
+            //       onPressed: () {
+            //         _onTap(3);
+            //         // Only navigate if not already on NotificationsPage [NOW WORK IN PROGRESS PAGE]
+            //         if (widget.context.widget.runtimeType !=
+            //             WorkInProgressPage) {
+            //           Navigator.pushReplacement(
+            //             context,
+            //             PageRouteBuilder(
+            //               pageBuilder:
+            //                   (context, animation, secondaryAnimation) =>
+            //                       const WorkInProgressPage(),
+            //               transitionDuration: Duration.zero,
+            //               reverseTransitionDuration: Duration.zero,
+            //             ),
+            //           );
+            //         }
+            //       },
+            //     ),
+            //     Text(
+            //       widget.notificationLabel,
+            //       style: TextStyle(
+            //         fontSize: 12,
+            //         color: Theme.of(context).textTheme.bodyMedium?.color,
+            //       ),
+            //     ),
+            //   ],
+            // ),
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [

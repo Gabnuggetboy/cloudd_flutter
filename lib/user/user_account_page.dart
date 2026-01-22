@@ -7,6 +7,7 @@ import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/models/user.dart';
 import 'package:cloudd_flutter/user/explore_experience_page.dart';
 import 'package:cloudd_flutter/models/experience.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
@@ -103,7 +104,7 @@ class AccountPage extends StatelessWidget {
                         backgroundImage:
                             (appUser.profileImageUrl != null &&
                                 appUser.profileImageUrl!.trim().isNotEmpty)
-                            ? NetworkImage(appUser.profileImageUrl!)
+                            ? ImageCacheService().getCachedImageProvider(appUser.profileImageUrl!)
                             : null,
                         child:
                             (appUser.profileImageUrl == null ||
@@ -230,8 +231,8 @@ class AccountPage extends StatelessWidget {
                                         ),
                                         child: (experience.imageUrl != null &&
                                                 experience.imageUrl!.isNotEmpty)
-                                            ? Image.network(
-                                                experience.imageUrl!,
+                                            ? ImageCacheService().getCachedImage(
+                                                imageUrl: experience.imageUrl!,
                                                 width: double.infinity,
                                                 fit: BoxFit.cover,
                                               )

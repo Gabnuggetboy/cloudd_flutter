@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloudd_flutter/services/device_loading_service.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 
 class AddContentPage extends StatefulWidget {
   final bool selectionMode;
@@ -288,13 +289,10 @@ class _AddContentPageState extends State<AddContentPage> {
                   fit: StackFit.expand,
                   children: [
                     if (iconUrl != null)
-                      Image.network(
-                        iconUrl,
+                      ImageCacheService().getCachedImage(
+                        imageUrl: iconUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildFallbackThumb(),
-                        loadingBuilder: (_, child, progress) => progress == null
-                            ? child
-                            : const Center(child: CircularProgressIndicator()),
+                        errorWidget: _buildFallbackThumb(),
                       )
                     else
                       _buildFallbackThumb(),
@@ -523,25 +521,23 @@ class _AddContentPageState extends State<AddContentPage> {
                                 padding: const EdgeInsets.all(4),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
-                                  child: Image.network(
-                                    DeviceLoadingService.deviceLogos[device]!,
+                                  child: ImageCacheService().getCachedImage(
+                                    imageUrl: DeviceLoadingService.deviceLogos[device]!,
                                     width: 64,
                                     height: 64,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: 64,
-                                        height: 64,
-                                        color: Colors.grey[300],
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.vrpano,
-                                            size: 32,
-                                            color: Colors.grey[600],
-                                          ),
+                                    errorWidget: Container(
+                                      width: 64,
+                                      height: 64,
+                                      color: Colors.grey[300],
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.vrpano,
+                                          size: 32,
+                                          color: Colors.grey[600],
                                         ),
-                                      );
-                                    },
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),

@@ -156,7 +156,8 @@ class SettingsPage extends StatelessWidget {
             buildTile(
               context,
               "Logout",
-              onTap: () {
+              onTap: () async {
+                await FirebaseAuth.instance.signOut();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => LoginPage()),

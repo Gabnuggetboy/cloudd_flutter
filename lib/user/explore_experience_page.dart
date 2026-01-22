@@ -6,6 +6,7 @@ import 'package:cloudd_flutter/manager/add_irigcontent_page.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/services/recently_played_service.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 import 'package:cloudd_flutter/models/experience.dart';
 import 'package:cloudd_flutter/user/queueing_page.dart';
 
@@ -632,13 +633,10 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                 fit: StackFit.expand,
                 children: [
                   if (iconUrl != null)
-                    Image.network(
-                      iconUrl,
+                    ImageCacheService().getCachedImage(
+                      imageUrl: iconUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildFallbackIcon(),
-                      loadingBuilder: (_, child, progress) => progress == null
-                          ? child
-                          : const Center(child: CircularProgressIndicator()),
+                      errorWidget: _buildFallbackIcon(),
                     )
                   else
                     _buildFallbackIcon(),
@@ -1041,25 +1039,24 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                                 padding: const EdgeInsets.all(4),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
-                                  child: Image.network(
-                                    DeviceLoadingService.deviceLogos[device]!,
+                                  child: ImageCacheService().getCachedImage(
+                                    imageUrl: DeviceLoadingService
+                                        .deviceLogos[device]!,
                                     width: 64,
                                     height: 64,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: 64,
-                                        height: 64,
-                                        color: Colors.grey[300],
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.vrpano,
-                                            size: 32,
-                                            color: Colors.grey[600],
-                                          ),
+                                    errorWidget: Container(
+                                      width: 64,
+                                      height: 64,
+                                      color: Colors.grey[300],
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.vrpano,
+                                          size: 32,
+                                          color: Colors.grey[600],
                                         ),
-                                      );
-                                    },
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),

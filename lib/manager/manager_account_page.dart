@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:cloudd_flutter/manager/widgets/bottom_navigation_widget.dart';
 import 'package:cloudd_flutter/top_settings_title_widget.dart';
 import 'package:cloudd_flutter/models/user.dart';
+import 'package:cloudd_flutter/services/image_caching_service.dart';
 
 class ManagerAccountPage extends StatelessWidget {
   const ManagerAccountPage({super.key});
@@ -61,7 +62,7 @@ class ManagerAccountPage extends StatelessWidget {
                         backgroundImage:
                             (appUser.profileImageUrl != null &&
                                 appUser.profileImageUrl!.trim().isNotEmpty)
-                            ? NetworkImage(appUser.profileImageUrl!)
+                            ? ImageCacheService().getCachedImageProvider(appUser.profileImageUrl!)
                             : null,
                         child:
                             (appUser.profileImageUrl == null ||
