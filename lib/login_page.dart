@@ -512,7 +512,7 @@ Sdsda
                       FadeInUp(
                         duration: Duration(milliseconds: 1900),
                         child: IgnorePointer(
-                          ignoring: _isLoading,
+                          ignoring: _isLoading || !_isFormFilled,
                           child: Opacity(
                             opacity: _isLoading ? 0.6 : 1.0,
                             child: GestureDetector(
