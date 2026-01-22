@@ -107,12 +107,12 @@ class _SignUpPageState extends State<SignUpPage> {
     final name = nameController.text.trim();
 
     if (!_isFormFilled) {
-      showMessage("Please fill all fields");
+      showErrorDialog("Please fill all fields");
       return;
     }
 
     if (password != confirm) {
-      showMessage("Passwords do not match");
+      showErrorDialog("Passwords do not match");
       return;
     }
 
@@ -139,7 +139,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       await user.save();
 
-      showMessage("Account created! Please verify your email.");
+      showAccountCreation("Account created! Please verify your email.");
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
@@ -158,14 +158,51 @@ class _SignUpPageState extends State<SignUpPage> {
         default:
           errorMessage = e.message ?? "An error occurred. Please try again.";
       }
-      showMessage(errorMessage);
+      showErrorDialog(errorMessage);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+  void showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Account Creation Error"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-  void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void showAccountCreation(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Account Creation Complete"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
     // Force light mode styling regardless of the global theme, cause dark mode is not supposed to affect theme of this page
