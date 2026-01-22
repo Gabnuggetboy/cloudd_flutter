@@ -25,6 +25,7 @@ class _SignUpPageState extends State<SignUpPage> {
   File? profileImage;
     bool passwordVisible = false;
   bool confirmPasswordVisible = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -32,6 +33,13 @@ class _SignUpPageState extends State<SignUpPage> {
     confirmController.dispose();
     super.dispose();
   }
+
+  bool get _isFormFilled =>
+    nameController.text.trim().isNotEmpty &&
+    emailController.text.trim().isNotEmpty &&
+    passwordController.text.trim().isNotEmpty &&
+    confirmController.text.trim().isNotEmpty &&
+    selectedDob != null;
 
   Widget inputContainer({required Widget child}) {
     return Container(
@@ -91,42 +99,36 @@ class _SignUpPageState extends State<SignUpPage> {
 
 
   Future<void> registerUser() async {
+    if (_isLoading) return;
+
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
     final confirm = confirmController.text.trim();
     final name = nameController.text.trim();
 
-    if (email.isEmpty ||
-        password.isEmpty ||
-        confirm.isEmpty ||
-        name.isEmpty ||
-        selectedDob == null) {
-      showMessage("Please fill all fields");
+    if (!_isFormFilled) {
+      showErrorDialog("Please fill all fields");
       return;
     }
 
     if (password != confirm) {
-      showMessage("Passwords do not match");
+      showErrorDialog("Passwords do not match");
       return;
     }
 
+    setState(() => _isLoading = true);
+
     try {
-      // Create user
-      // 1️⃣ Create Firebase Auth user
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       await credential.user!.sendEmailVerification();
 
-       // 2️⃣ Upload profile image
       final imageUrl = await uploadProfileImage(credential.user!.uid);
 
-
-      // 3️⃣ Create AppUser MODEL
-       final user = AppUser(
+      final user = AppUser(
         uid: credential.user!.uid,
         email: email,
         name: name,
@@ -137,13 +139,10 @@ class _SignUpPageState extends State<SignUpPage> {
 
       await user.save();
 
-      showMessage("Account created! Please verify your email.");
+      showAccountCreation("Account created! Please verify your email.");
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
-        case 'invalid-credential':
-          errorMessage = "Invalid email or password. Please try again.";
-          break;
         case 'email-already-in-use':
           errorMessage = "This email is already registered. Please login instead.";
           break;
@@ -156,24 +155,54 @@ class _SignUpPageState extends State<SignUpPage> {
         case 'operation-not-allowed':
           errorMessage = "Email/password sign up is not enabled.";
           break;
-        case 'user-disabled':
-          errorMessage = "This account has been disabled.";
-          break;
-        case 'user-not-found':
-          errorMessage = "No account found with this email.";
-          break;
-        case 'wrong-password':
-          errorMessage = "Incorrect password. Please try again.";
-          break;
         default:
           errorMessage = e.message ?? "An error occurred. Please try again.";
       }
-      showMessage(errorMessage);
+      showErrorDialog(errorMessage);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+  void showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Account Creation Error"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-  void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void showAccountCreation(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Account Creation Complete"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
     // Force light mode styling regardless of the global theme, cause dark mode is not supposed to affect theme of this page
@@ -321,6 +350,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               child: TextField(
                                 controller: nameController,
+                                onChanged: (_) => setState(() {}),
                                 decoration: const InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Full Name",
@@ -332,6 +362,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             Container(
                               
                               padding: const EdgeInsets.all(8.0),
+                              
                               decoration: BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
@@ -342,6 +373,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               child: GestureDetector(
                                 onTap: pickDateOfBirth,
+                                
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -390,6 +422,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               ),
                               child: TextField(
                                 controller: emailController,
+                                onChanged: (_) => setState(() {}),
                                 keyboardAppearance: Brightness.light,
                                 cursorColor: Colors.black,
                                 style: TextStyle(color: Colors.black),
@@ -507,33 +540,49 @@ class _SignUpPageState extends State<SignUpPage> {
                     SizedBox(height: 15),
                     FadeInUp(
                       duration: Duration(milliseconds: 1900),
-                      child: GestureDetector(
-                        onTap: () {
-                          registerUser();
-                        },
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            gradient: LinearGradient(
-                              colors: [
-                                Color.fromRGBO(143, 148, 251, 1),
-                                Color.fromRGBO(143, 148, 251, .6),
-                              ],
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "Sign Up",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                      child: IgnorePointer(
+                        ignoring: !_isFormFilled || _isLoading,
+                        child: Opacity(
+                          opacity: (!_isFormFilled || _isLoading) ? 0.6 : 1.0,
+                          child: GestureDetector(
+                            onTap: () => registerUser(),
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  colors: (_isFormFilled && !_isLoading)
+                                      ? [
+                                          const Color(0xFF5B60C8),
+                                          const Color(0xFF3F438F),
+                                        ]
+                                      : [
+                                          const Color.fromRGBO(143, 148, 251, 1),
+                                          const Color.fromRGBO(143, 148, 251, .6),
+                                        ],
+                                ),
+                              ),
+                              child: Center(
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Text(
+                                        "Sign Up",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
+
                     SizedBox(height: 10),
                     FadeInUp(
                       duration: Duration(milliseconds: 2000),

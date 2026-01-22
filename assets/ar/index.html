@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Make page transparent instead of black -->
     <style>
       html, body {
         margin: 0;
@@ -24,14 +23,17 @@
 
   <body>
     <a-scene
-      mindar-image="imageTargetSrc: targets.mind; autoStart: true;"
+      mindar-image="imageTargetSrc: targets_new.mind; autoStart: true;"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
       renderer="colorManagement: true; alpha: true"
       embedded
     >
       <a-assets>
-        <img id="overlay" src="overlay.png" />
+        <img id="img1" src="img_1.png" />
+        <img id="img2" src="img_2.png" />
+        <img id="img3" src="img_3.png" />
+        <img id="img4" src="img_4.png" />
       </a-assets>
 
       <a-camera
@@ -39,10 +41,36 @@
         look-controls="enabled: false"
       ></a-camera>
 
-      <!-- Attach overlay to target index 0 -->
       <a-entity mindar-image-target="targetIndex: 0">
         <a-plane
-          src="#overlay"
+          src="#img1"
+          position="0 0 0"
+          width="1"
+          height="0.6"
+          material="transparent: true; opacity: 1"
+        ></a-plane>
+      </a-entity>
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-plane
+          src="#img2"
+          position="0 0 0"
+          width="1"
+          height="0.6"
+          material="transparent: true; opacity: 1"
+        ></a-plane>
+      </a-entity>
+      <a-entity mindar-image-target="targetIndex: 2">
+        <a-plane
+          src="#img3"
+          position="0 0 0"
+          width="1"
+          height="0.6"
+          material="transparent: true; opacity: 1"
+        ></a-plane>
+      </a-entity>
+      <a-entity mindar-image-target="targetIndex: 3">
+        <a-plane
+          src="#img4"
           position="0 0 0"
           width="1"
           height="0.6"

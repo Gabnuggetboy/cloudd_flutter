@@ -14,15 +14,35 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController _emailController = TextEditingController();
   bool _loading = false;
 
-  void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  bool get _isFormFilled =>
+    _emailController.text.trim().isNotEmpty;
+
+  void showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(" Error "),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> sendResetEmail() async {
     final email = _emailController.text.trim();
 
     if (email.isEmpty) {
-      showMessage("Please enter your email");
+      showErrorDialog("Please enter your email");
       return;
     }
 
@@ -30,13 +50,27 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      showMessage("Password reset email sent. Check your inbox.");
+      showErrorDialog("Password reset email sent. Check your inbox.");
 
       await Future.delayed(const Duration(seconds: 1));
       Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      showMessage(e.message ?? "Failed to send reset email");
-    } finally {
+    } 
+    on FirebaseAuthException catch (e) {
+      String message;
+
+      switch (e.code) {
+        case 'invalid-email':
+          message = "Please enter a proper email";
+          break;
+        case 'user-not-found':
+          message = "No account found with this email";
+          break;
+        default:
+          message = e.message ?? "Failed to send reset email";
+      }
+      showErrorDialog(message);
+    } 
+    finally {
       setState(() => _loading = false);
     }
   }
@@ -77,7 +111,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         body: SingleChildScrollView(
           child: Column(
             children: [
-              /// ================= HEADER =================
               Container(
                 height: 270,
                 decoration: const BoxDecoration(
@@ -136,7 +169,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 ),
               ),
 
-              /// ================= CONTENT =================
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -166,6 +198,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               child: TextField(
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
+                                onChanged: (_) => setState(() {}),
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
                                   hintText: "Email",
@@ -193,36 +226,53 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     FadeInUp(
                       duration: const Duration(milliseconds: 1900),
-                      child: GestureDetector(
-                        onTap: _loading ? null : sendResetEmail,
-                        child: Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color.fromRGBO(143, 148, 251, 1),
-                                Color.fromRGBO(143, 148, 251, .6),
-                              ],
+                      child: IgnorePointer(
+                        ignoring: !_isFormFilled || _loading,
+                        child: Opacity(
+                          opacity: (!_isFormFilled || _loading) ? 0.6 : 1.0,
+                          child: GestureDetector(
+                            onTap: sendResetEmail,
+                            child: Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  colors: (_isFormFilled && !_loading)
+                                      ? const [
+                                          Color(0xFF5B60C8),
+                                          Color(0xFF3F438F),
+                                        ]
+                                      : const [
+                                          Color.fromRGBO(143, 148, 251, 1),
+                                          Color.fromRGBO(143, 148, 251, .6),
+                                        ],
+                                ),
+                              ),
+                              child: Center(
+                                child: _loading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        "Send Reset Link",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                              ),
                             ),
-                          ),
-                          child: Center(
-                            child: _loading
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white,
-                                  )
-                                : const Text(
-                                    "Send Reset Link",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
                           ),
                         ),
                       ),
                     ),
+
 
                     const SizedBox(height: 15),
 

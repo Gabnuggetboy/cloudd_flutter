@@ -34,16 +34,10 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-  }
 
   bool get _isFormFilled =>
       _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
 
-  // ---------------------------------------
-  // LOGIN FUNCTION
-  // ---------------------------------------
   Future<void> loginUser() async {
     if (_isLoading) return; // Prevent multiple calls
 
@@ -51,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
     String password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      showMessage("Please fill all fields");
+      showErrorDialog("Please fill all fields");
       return;
     }
 
@@ -65,13 +59,13 @@ class _LoginPageState extends State<LoginPage> {
       User? user = userCredential.user;
 
       if (user == null) {
-        showMessage("Unexpected error. Try again.");
+        showErrorDialog("Unexpected error. Try again.");
         return;
       }
 
       // Check if email is verified
       if (!user.emailVerified) {
-        showMessage("Please verify your email before logging in.");
+        showErrorDialog("Please verify your email before logging in.");
         await FirebaseAuth.instance.signOut();
         return;
       }
@@ -128,12 +122,33 @@ class _LoginPageState extends State<LoginPage> {
         default:
           errorMessage = e.message ?? "Login failed. Please try again.";
       }
-      showMessage(errorMessage);
+      showErrorDialog(errorMessage);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // user MUST press OK
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Login Error"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 /*
 Sdsda
@@ -497,7 +512,7 @@ Sdsda
                       FadeInUp(
                         duration: Duration(milliseconds: 1900),
                         child: IgnorePointer(
-                          ignoring: _isLoading,
+                          ignoring: _isLoading || !_isFormFilled,
                           child: Opacity(
                             opacity: _isLoading ? 0.6 : 1.0,
                             child: GestureDetector(
