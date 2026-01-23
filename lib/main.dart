@@ -1,4 +1,5 @@
 import 'package:cloudd_flutter/firebase_options.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloudd_flutter/login_page.dart';
@@ -11,14 +12,21 @@ import 'package:cloudd_flutter/navigation_service.dart';
 import 'package:cloudd_flutter/user/home_page.dart';
 import 'package:cloudd_flutter/manager/manager_account_page.dart';
 import 'package:cloudd_flutter/models/user.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
-  // Ensure Flutter widgets are initialized
+  // Ensure flutter widgets are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
+  );
+  debugPrint("AppCheck provider = ${kDebugMode ? "DEBUG" : "PLAY_INTEGRITY"}");
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeProvider(),
