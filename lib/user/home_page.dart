@@ -30,12 +30,34 @@ class _HomePageState extends State<HomePage> {
   List<Experience> _popularExperiences = [];
   bool _popularLoading = true;
 
+  final Map<String, Future<String>> _categoryUrlFutures = {};
+  final Map<String, String> _categoryUrlCache = {};
+
+
   @override
   void initState() {
     super.initState();
     _loadCurrentUserProfile();
     _loadRecommendedExperiences();
     _loadMostPopularExperiences();
+  }
+
+  Future<String> getCategoryImageUrlCached(String category) {
+    final key = category.toLowerCase().trim();
+
+    final cached = _categoryUrlCache[key];
+    if (cached != null) return Future.value(cached);
+
+    final inFlight = _categoryUrlFutures[key];
+    if (inFlight != null) return inFlight;
+
+    final future = getCategoryImageUrl(category).then((url) {
+      if (url.isNotEmpty) _categoryUrlCache[key] = url;
+      return url;
+    });
+
+    _categoryUrlFutures[key] = future;
+    return future;
   }
 
   Future<String> getCategoryImageUrl(String category) async {
@@ -343,38 +365,31 @@ class _HomePageState extends State<HomePage> {
                                         CrossAxisAlignment.center,
                                     children: [
                                       FutureBuilder<String>(
-                                        future: getCategoryImageUrl(category),
+                                        future: getCategoryImageUrlCached(category),
                                         builder: (context, snapshot) {
+                                          final url = snapshot.data;
                                           return Container(
                                             width: 65,
                                             height: 65,
                                             decoration: const BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: Color.fromRGBO(
-                                                143,
-                                                148,
-                                                251,
-                                                1,
-                                              ),
+                                              color: Color.fromRGBO(143, 148, 251, 1),
                                             ),
                                             clipBehavior: Clip.antiAlias,
-                                            child:
-                                                snapshot.hasData &&
-                                                    snapshot.data!.isNotEmpty
+                                            child: (url != null && url.isNotEmpty)
                                                 ? ImageCacheService().getCachedImage(
-                                                    imageUrl: snapshot.data!,
+                                                    imageUrl: url,
                                                     fit: BoxFit.cover,
                                                     width: 65,
                                                     height: 65,
                                                   )
-                                                : const Icon(
-                                                    Icons.category,
-                                                    color: Colors.white,
-                                                  ),
+                                                : const Icon(Icons.category, color: Colors.white),
                                           );
                                         },
                                       ),
+
                                       const SizedBox(height: 4),
+                                      
                                       SizedBox(
                                         width: 75,
                                         child: Text(

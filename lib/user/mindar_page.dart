@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -42,6 +41,7 @@ class _MindARPageState extends State<MindARPage> {
     }
 
     // 1) Start local server
+    // ignore: prefer_function_declarations_over_variables
     final handler = (Request req) async {
       // Map routes to your assets
       final path = req.url.path.isEmpty ? 'index.html' : req.url.path;

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'experience_details.dart';
 import 'package:cloudd_flutter/models/experience.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ExperiencesPage extends StatefulWidget {
   const ExperiencesPage({super.key});
@@ -177,40 +178,27 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                                     child: Row(
                                       children: [
                                         // Image or placeholder
-                                        Container(
-                                          width: 72,
-                                          height: 72,
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            image:
-                                                experience.imageUrl != null &&
-                                                    experience
-                                                        .imageUrl!
-                                                        .isNotEmpty
-                                                ? DecorationImage(
-                                                    image: NetworkImage(
-                                                      experience.imageUrl!,
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : null,
-                                            color:
-                                                experience.imageUrl == null ||
-                                                    experience.imageUrl!.isEmpty
-                                                ? Colors.grey[300]
-                                                : null,
-                                          ),
-                                          child:
-                                              experience.imageUrl == null ||
-                                                  experience.imageUrl!.isEmpty
-                                              ? const Icon(
-                                                  Icons.image,
-                                                  color: Colors.grey,
-                                                  size: 32,
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: experience.imageUrl != null && experience.imageUrl!.isNotEmpty
+                                              ? CachedNetworkImage(
+                                                  imageUrl: experience.imageUrl!,
+                                                  fit: BoxFit.cover,
+                                                  width: 72,
+                                                  height: 72,
+                                                  placeholder: (context, url) => Container(
+                                                    color: Colors.grey[300],
+                                                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                                  ),
+                                                  errorWidget: (context, url, error) => Container(
+                                                    color: Colors.grey[300],
+                                                    child: const Icon(Icons.image, color: Colors.grey, size: 32),
+                                                  ),
                                                 )
-                                              : null,
+                                              : Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(Icons.image, color: Colors.grey, size: 32),
+                                                ),
                                         ),
 
                                         const SizedBox(width: 12),
