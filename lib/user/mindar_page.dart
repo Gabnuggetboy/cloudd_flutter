@@ -104,11 +104,11 @@ class _MindARPageState extends State<MindARPage> {
     });
   }
 
-  /// Downloads the files you need from Firebase Storage into memory.
+  /// Downloads the files needed from Firebase Storage into memory.
   Future<void> _preloadFirebaseFiles() async {
     final storage = FirebaseStorage.instance;
 
-    // These paths must match what you uploaded: /ar/img_1.png etc.
+    // These paths must match what is uploaded: /ar/img_1.png etc.
     final refs = <String, Reference>{
       '/targets_new.mind': storage.ref('ar/targets_new.mind'),
       '/img_1.png': storage.ref('ar/img_1.png'),
