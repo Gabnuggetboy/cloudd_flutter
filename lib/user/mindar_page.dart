@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -10,6 +11,8 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:firebase_storage/firebase_storage.dart';
+
+import 'package:cloudd_flutter/models/AR_Assets.dart';
 
 class MindARPage extends StatefulWidget {
   const MindARPage({super.key});
@@ -24,8 +27,11 @@ class _MindARPageState extends State<MindARPage> {
 
   HttpServer? _server;
 
-  // In-memory cache for bytes served by local server
+  /// Bytes served by our localhost server
   final Map<String, Uint8List> _byteCache = {};
+
+  /// Number of images found (img_1.png, img_2.png, ...)
+  int _imageCount = 0;
 
   @override
   void initState() {
@@ -47,17 +53,22 @@ class _MindARPageState extends State<MindARPage> {
       return;
     }
 
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
 
-    // Download Firebase Storage files into memory, Webview now loads fromm localhost
-    await _preloadFirebaseFiles();
+    // 2) Fetch URLs using auto-expanding model
+    //    (it returns: target + img1..imgN)
+    final urls = await ARAssets.fetchArUrls();
 
-    // 3) Start local server that serves index.html + the downloaded files
+    // 3) Download those URLs into memory and map them to localhost paths:
+    //    /targets_new.mind, /img_1.png, /img_2.png, ...
+    await _preloadFromUrls(urls);
+
+    // 4) Start local server that serves index.html + downloaded bytes
     await _startLocalServer();
 
     final localUrl = 'http://127.0.0.1:${_server!.port}/index.html';
 
-    // 4) WebView setup
+    // 5) WebView setup
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
@@ -83,19 +94,22 @@ class _MindARPageState extends State<MindARPage> {
         'Chrome/120.0.0.0 Mobile Safari/537.36',
       );
 
+      // Grant camera/mic permissions requested by the page
       platform.setOnPlatformPermissionRequest(
         (request) async => request.grant(),
       );
 
+      // Allow autoplay / camera stream without gesture
       await platform.setMediaPlaybackRequiresUserGesture(false);
 
+      // Enable webview debugging (inspect via chrome://inspect)
       AndroidWebViewController.enableDebugging(true);
     }
 
     if (!mounted) return;
     setState(() => _controller = controller);
 
-    // 5) Load from local server
+    // 6) Load from local server
     await controller.loadRequest(Uri.parse(localUrl));
 
     // Safety: hide spinner if MindAR continues init in background
@@ -104,44 +118,75 @@ class _MindARPageState extends State<MindARPage> {
     });
   }
 
-  /// Downloads the files needed from Firebase Storage into memory.
-  Future<void> _preloadFirebaseFiles() async {
-    final storage = FirebaseStorage.instance;
+  /// Downloads bytes from the model's URLs and stores them in _byteCache
+  /// under the localhost paths that the HTML expects.
+  Future<void> _preloadFromUrls(Map<String, String> urls) async {
+    _byteCache.clear();
 
-    // These paths must match what is uploaded: /ar/img_1.png etc.
-    final refs = <String, Reference>{
-      '/targets_new.mind': storage.ref('ar/targets_new.mind'),
-      '/img_1.png': storage.ref('ar/img_1.png'),
-      '/img_2.png': storage.ref('ar/img_2.png'),
-      '/img_3.png': storage.ref('ar/img_3.png'),
-      '/img_4.png': storage.ref('ar/img_4.png'),
-    };
+    final targetUrl = urls['target'];
+    if (targetUrl == null || targetUrl.isEmpty) {
+      throw Exception("ARAssets.fetchArUrls() did not return 'target'");
+    }
 
-    // Download in parallel
-    final futures = refs.entries.map((e) async {
-      final path = e.key;
-      final ref = e.value;
+    // Download mind file bytes
+    _byteCache['/targets_new.mind'] = await _downloadUrlBytes(
+      targetUrl,
+      maxBytes: 50 * 1024 * 1024, // 50MB
+    );
 
-      final bytes = await ref.getData(20 * 1024 * 1024); // 20MB
-      if (bytes == null) {
-        throw Exception('Failed to download $path from Firebase Storage');
-      }
-      _byteCache[path] = bytes;
-    });
+    // Collect img1..imgN keys in numeric order
+    final imgEntries = urls.entries
+        .where((e) => RegExp(r'^img\d+$').hasMatch(e.key))
+        .toList()
+      ..sort((a, b) {
+        int n(String k) => int.parse(k.replaceAll('img', ''));
+        return n(a.key).compareTo(n(b.key));
+      });
 
-    await Future.wait(futures);
+    _imageCount = imgEntries.length;
+
+    // Download each image and store as /img_#.png
+    await Future.wait(imgEntries.map((e) async {
+      final idx = int.parse(e.key.replaceAll('img', '')); // 1-based
+
+      final ext = _guessExtFromUrl(e.value); // png/jpg/jpeg
+      final localPath = '/img_$idx.$ext';
+
+      _byteCache[localPath] = await _downloadUrlBytes(
+        e.value,
+        maxBytes: 20 * 1024 * 1024, // 20MB
+      );
+    }));
+  }
+
+  Future<Uint8List> _downloadUrlBytes(
+    String url, {
+    required int maxBytes,
+  }) async {
+    // Use FirebaseStorage to fetch by URL
+    final ref = FirebaseStorage.instance.refFromURL(url);
+    final data = await ref.getData(maxBytes);
+    if (data == null) {
+      throw Exception('Failed to download bytes from: $url');
+    }
+    return data;
+  }
+
+  String _guessExtFromUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.jpg')) return 'jpg';
+    if (u.contains('.jpeg')) return 'jpeg';
+    return 'png';
   }
 
   Future<void> _startLocalServer() async {
-    // Shelf handler
     // ignore: prefer_function_declarations_over_variables
     final handler = (Request req) async {
-      final path = '/${req.url.path}';
-      final normalized = (path == '/' || path == '/index.html')
-          ? '/index.html'
-          : path;
+      // Normalize path
+      final path = req.url.path.isEmpty ? '/index.html' : '/${req.url.path}';
+      final normalized = path;
 
-      // Serve index.html (generated)
+      // Serve index.html
       if (normalized == '/index.html') {
         final html = _buildIndexHtml();
         return Response.ok(
@@ -150,14 +195,13 @@ class _MindARPageState extends State<MindARPage> {
         );
       }
 
-      // Serve bytes for known files
+      // Serve downloaded bytes
       final bytes = _byteCache[normalized];
       if (bytes == null) {
         return Response.notFound('Not found: $normalized');
       }
 
-      // Pick content type based on extension
-      String fileName = normalized.split('/').last;
+      final fileName = normalized.split('/').last;
       return Response.ok(
         bytes,
         headers: _headersFor(fileName),
@@ -173,12 +217,13 @@ class _MindARPageState extends State<MindARPage> {
     if (fileName.endsWith('.html')) contentType = 'text/html; charset=utf-8';
     if (fileName.endsWith('.js')) contentType = 'application/javascript; charset=utf-8';
     if (fileName.endsWith('.png')) contentType = 'image/png';
-    if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) contentType = 'image/jpeg';
+    if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+      contentType = 'image/jpeg';
+    }
     if (fileName.endsWith('.mind')) contentType = 'application/octet-stream';
 
     return {
       'content-type': contentType,
-
       'access-control-allow-origin': '*',
       'access-control-allow-methods': 'GET, OPTIONS',
       'access-control-allow-headers': '*',
@@ -187,6 +232,32 @@ class _MindARPageState extends State<MindARPage> {
   }
 
   String _buildIndexHtml() {
+    // Build <img> tags + target entities dynamically based on _imageCount
+    final assetsImgs = List.generate(_imageCount, (i) {
+      final n = i + 1;
+
+      // Served the image as /img_n.<ext>
+      // Check cache keys; default to png.
+      final ext = _byteCache.containsKey('/img_$n.jpg')
+          ? 'jpg'
+          : _byteCache.containsKey('/img_$n.jpeg')
+              ? 'jpeg'
+              : 'png';
+
+      return '<img id="img$n" crossorigin="anonymous" src="/img_$n.$ext" />';
+    }).join('\n');
+
+    final entities = List.generate(_imageCount, (i) {
+      final n = i + 1; // image id
+      final targetIndex = i; // 0-based index for MindAR targets
+      return '''
+      <a-entity mindar-image-target="targetIndex: $targetIndex">
+        <a-plane src="#img$n" width="1" height="0.6"
+          material="transparent:true; opacity:1"></a-plane>
+      </a-entity>
+      ''';
+    }).join('\n');
+
     return '''
       <!doctype html>
       <html>
@@ -213,39 +284,18 @@ class _MindARPageState extends State<MindARPage> {
         <body>
           <a-scene
             mindar-image="imageTargetSrc: /targets_new.mind; autoStart: true; uiScanning: false;"
-            vr-mode-ui="enabled: false"
-            device-orientation-permission-ui="enabled: false"
-            renderer="colorManagement: true; alpha: true; antialias: true; precision: high;"
+            vr-mode-ui="enabled:false"
+            device-orientation-permission-ui="enabled:false"
+            renderer="colorManagement:true; alpha:true; antialias:true; precision:high;"
             embedded
           >
             <a-assets timeout="10000">
-              <img id="img1" crossorigin="anonymous" src="/img_1.png" />
-              <img id="img2" crossorigin="anonymous" src="/img_2.png" />
-              <img id="img3" crossorigin="anonymous" src="/img_3.png" />
-              <img id="img4" crossorigin="anonymous" src="/img_4.png" />
+              $assetsImgs
             </a-assets>
 
             <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-            <a-entity mindar-image-target="targetIndex: 0">
-              <a-plane src="#img1" width="1" height="0.6"
-                material="transparent:true; opacity:1"></a-plane>
-            </a-entity>
-
-            <a-entity mindar-image-target="targetIndex: 1">
-              <a-plane src="#img2" width="1" height="0.6"
-                material="transparent:true; opacity:1"></a-plane>
-            </a-entity>
-
-            <a-entity mindar-image-target="targetIndex: 2">
-              <a-plane src="#img3" width="1" height="0.6"
-                material="transparent:true; opacity:1"></a-plane>
-            </a-entity>
-
-            <a-entity mindar-image-target="targetIndex: 3">
-              <a-plane src="#img4" width="1" height="0.6"
-                material="transparent:true; opacity:1"></a-plane>
-            </a-entity>
+            $entities
           </a-scene>
         </body>
       </html>
