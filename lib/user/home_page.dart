@@ -377,12 +377,7 @@ class _HomePageState extends State<HomePage> {
                                             height: 65,
                                             decoration: const BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: Color.fromRGBO(
-                                                143,
-                                                148,
-                                                251,
-                                                1,
-                                              ),
+                                              color: Color.fromRGBO(143, 148, 251, 1),
                                             ),
                                             clipBehavior: Clip.antiAlias,
                                             child:
@@ -401,7 +396,9 @@ class _HomePageState extends State<HomePage> {
                                           );
                                         },
                                       ),
+
                                       const SizedBox(height: 4),
+                                      
                                       SizedBox(
                                         width: 75,
                                         child: Text(
