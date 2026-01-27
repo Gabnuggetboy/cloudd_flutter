@@ -2,6 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class DeviceLoadingService {
+  // Cache: device -> (contentName -> full icon URL)
+  static final Map<String, Map<String, String>> _contentIconUrlCache = {};
+  static final Map<String, DateTime> _contentIconUrlCacheUpdatedAt = {};
+  static const Duration _contentIconUrlCacheTtl = Duration(minutes: 5);
+
   static const String icubeBase = 'http://192.168.0.143:5000';
   static const String irigBase = 'http://192.168.0.126:5000';
   static const String icreateBase = 'http://192.168.0.129:5000';
@@ -54,6 +59,70 @@ class DeviceLoadingService {
 
   static Future<DeviceContentResult> fetchStorytimeContents() =>
       _fetchDeviceContent(storytimeBase, 'Storytime');
+
+  /// Fetch contents for a given device.
+  static Future<DeviceContentResult> fetchContentsForDevice(String device) {
+    switch (device) {
+      case 'iCube':
+        return fetchICubeContents();
+      case 'iRig':
+        return fetchIRigContents();
+      case 'iCreate':
+        return fetchICreateContents();
+      case 'Storytime':
+        return fetchStorytimeContents();
+      default:
+        return Future.value(
+          DeviceContentResult(
+            contents: const [],
+            error: 'Unknown device: $device',
+          ),
+        );
+    }
+  }
+
+  /// Resolve a content icon URL by content name.
+  ///
+  /// This is a best-effort helper for UIs that only have the running content name
+  /// (e.g. when the device was launched by another client).
+  ///
+  /// Uses a small in-memory TTL cache to avoid re-fetching `/contents` repeatedly.
+  static Future<String?> resolveContentIconUrl(
+    String device,
+    String contentName,
+  ) async {
+    final now = DateTime.now();
+    final lastUpdated = _contentIconUrlCacheUpdatedAt[device];
+
+    final cacheIsFresh =
+        lastUpdated != null &&
+        now.difference(lastUpdated) < _contentIconUrlCacheTtl;
+
+    if (cacheIsFresh) {
+      final deviceCache = _contentIconUrlCache[device];
+      final cached = deviceCache?[contentName];
+      if (cached != null) return cached;
+    }
+
+    final contentsResult = await fetchContentsForDevice(device);
+    if (contentsResult.error != null) return null;
+
+    final Map<String, String> iconMap = {};
+    for (final item in contentsResult.contents) {
+      if (item is Map) {
+        final name = item['name'];
+        final iconPath = item['icon_url'];
+        if (name is String && iconPath is String) {
+          iconMap[name] = getContentIconUrl(device, iconPath);
+        }
+      }
+    }
+
+    _contentIconUrlCache[device] = iconMap;
+    _contentIconUrlCacheUpdatedAt[device] = now;
+
+    return iconMap[contentName];
+  }
 
   // this fetchAllDeviceContents is not used in explore_experience_page.dart
   // because although it will reduce lines of code, it sadly makes loading the page slow...
@@ -437,6 +506,66 @@ class DeviceLoadingService {
       return DequeueResult(success: false, message: 'Error: $e');
     }
   }
+
+  // Clear all users from a device's queue (manager only)
+  static Future<ClearQueueResult> clearQueue(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return ClearQueueResult(success: false, message: 'Unknown device');
+    }
+
+    try {
+      final res = await http
+          .get(Uri.parse('$base/clear-queue'))
+          .timeout(timeout);
+
+      if (res.statusCode == 200) {
+        return ClearQueueResult(success: true, message: 'Queue cleared');
+      } else {
+        return ClearQueueResult(
+          success: false,
+          message: 'Failed to clear queue',
+        );
+      }
+    } catch (e) {
+      return ClearQueueResult(success: false, message: 'Error: $e');
+    }
+  }
+
+  // Force stop any running content on a device by first checking what's running
+  // then stopping it (manager only)
+  static Future<DeviceStopResult> forceStopContent(String device) async {
+    final base = getBaseUrl(device);
+    if (base.isEmpty) {
+      return DeviceStopResult(
+        success: false,
+        message: 'Unknown device: $device',
+      );
+    }
+
+    try {
+      // First, check what content is running
+      final statusResult = await checkLaunchedClientIP(device);
+
+      if (statusResult.status != 'content_running' ||
+          statusResult.runningContent == null) {
+        // Nothing running, that's fine
+        return DeviceStopResult(
+          success: true,
+          message: 'No content running on $device',
+        );
+      }
+
+      // Stop the running content
+      final stopResult = await stopContent(
+        device,
+        statusResult.runningContent!,
+      );
+      return stopResult;
+    } catch (e) {
+      return DeviceStopResult(success: false, message: 'Error: $e');
+    }
+  }
 }
 
 class DeviceContentResult {
@@ -535,4 +664,11 @@ class DequeueResult {
   final String message;
 
   DequeueResult({required this.success, required this.message});
+}
+
+class ClearQueueResult {
+  final bool success;
+  final String message;
+
+  ClearQueueResult({required this.success, required this.message});
 }

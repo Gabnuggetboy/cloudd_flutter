@@ -16,6 +16,8 @@ class TopSettingsTitleWidget extends StatelessWidget {
   final VoidCallback? onSettingsTap;
   final bool showNotificationIcon;
   final VoidCallback? onNotificationTap;
+  final bool showBackArrow;
+  final VoidCallback? onBackArrowTap;
 
   const TopSettingsTitleWidget({
     super.key,
@@ -32,6 +34,8 @@ class TopSettingsTitleWidget extends StatelessWidget {
     this.onSettingsTap,
     this.showNotificationIcon = false,
     this.onNotificationTap,
+    this.showBackArrow = false,
+    this.onBackArrowTap,
   });
 
   @override
@@ -41,43 +45,53 @@ class TopSettingsTitleWidget extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        showCloudd
-            ? Text(
-                clouddText,
-                style: TextStyle(
-                  fontSize: logoFontSize,
-                  fontWeight: FontWeight.w700,
-                  color: logoColor,
-                ),
-              )
-            : showNotifications
-            ? Text(
-                notificationsText,
-                style: TextStyle(
-                  fontSize: logoFontSize,
-                  fontWeight: FontWeight.w700,
-                  color: logoColor,
-                ),
-              )
-            : showDDHub
-            ? Text(
-                ddHubText,
-                style: TextStyle(
-                  fontSize: logoFontSize,
-                  fontWeight: FontWeight.w700,
-                  color: logoColor,
-                ),
-              )
-            : showManageExperiences
-            ? Text(
-                manageExperiencesText,
-                style: TextStyle(
-                  fontSize: logoFontSize,
-                  fontWeight: FontWeight.w700,
-                  color: logoColor,
-                ),
-              )
-            : SizedBox(width: logoFontSize * 3),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showBackArrow)
+              IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: onBackArrowTap ?? () => Navigator.pop(context),
+              ),
+            showCloudd
+                ? Text(
+                    clouddText,
+                    style: TextStyle(
+                      fontSize: logoFontSize,
+                      fontWeight: FontWeight.w700,
+                      color: logoColor,
+                    ),
+                  )
+                : showNotifications
+                ? Text(
+                    notificationsText,
+                    style: TextStyle(
+                      fontSize: logoFontSize,
+                      fontWeight: FontWeight.w700,
+                      color: logoColor,
+                    ),
+                  )
+                : showDDHub
+                ? Text(
+                    ddHubText,
+                    style: TextStyle(
+                      fontSize: logoFontSize,
+                      fontWeight: FontWeight.w700,
+                      color: logoColor,
+                    ),
+                  )
+                : showManageExperiences
+                ? Text(
+                    manageExperiencesText,
+                    style: TextStyle(
+                      fontSize: logoFontSize,
+                      fontWeight: FontWeight.w700,
+                      color: logoColor,
+                    ),
+                  )
+                : SizedBox(width: logoFontSize * 3),
+          ],
+        ),
         showNotificationIcon
             ? IconButton(
                 onPressed:

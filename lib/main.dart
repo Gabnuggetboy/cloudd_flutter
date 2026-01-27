@@ -11,6 +11,7 @@ import 'package:cloudd_flutter/navigation_service.dart';
 import 'package:cloudd_flutter/user/home_page.dart';
 import 'package:cloudd_flutter/manager/manager_account_page.dart';
 import 'package:cloudd_flutter/models/user.dart';
+import 'package:cloudd_flutter/services/queue_service.dart';
 
 void main() async {
   // Ensure Flutter widgets are initialized
@@ -19,9 +20,15 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Initialize QueueService
+  await QueueService().initialize();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => QueueService()),
+      ],
       child: const MyApp(),
     ),
   );

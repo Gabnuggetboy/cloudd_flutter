@@ -48,15 +48,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
       await _service.acceptCollaboratorInvite(expId);
       await notifDoc.reference.delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invitation accepted')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Invitation accepted')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to accept: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to accept: $e')));
       }
     }
   }
@@ -73,15 +73,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
       await _service.declineCollaboratorInvite(expId);
       await notifDoc.reference.delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invitation declined')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Invitation declined')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to decline: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to decline: $e')));
       }
     }
   }
@@ -101,9 +101,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
               child: TopSettingsTitleWidget(
                 showCloudd: false,
                 showSettings: true,
-                showNotifications: true,
+                // showNotifications: false,
+                showBackArrow: true,
               ),
-            ),        
+            ),
             Expanded(
               child: primaryStream == null
                   ? const Center(child: Text('Not logged in'))
@@ -129,7 +130,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               child: CircularProgressIndicator(),
                             );
                           }
-                          
+
                           return _NotificationList(
                             docs: docs,
                             onAccept: _acceptInvite,

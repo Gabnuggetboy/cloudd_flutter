@@ -30,12 +30,33 @@ class _HomePageState extends State<HomePage> {
   List<Experience> _popularExperiences = [];
   bool _popularLoading = true;
 
+  final Map<String, Future<String>> _categoryUrlFutures = {};
+  final Map<String, String> _categoryUrlCache = {};
+
   @override
   void initState() {
     super.initState();
     _loadCurrentUserProfile();
     _loadRecommendedExperiences();
     _loadMostPopularExperiences();
+  }
+
+  Future<String> getCategoryImageUrlCached(String category) {
+    final key = category.toLowerCase().trim();
+
+    final cached = _categoryUrlCache[key];
+    if (cached != null) return Future.value(cached);
+
+    final inFlight = _categoryUrlFutures[key];
+    if (inFlight != null) return inFlight;
+
+    final future = getCategoryImageUrl(category).then((url) {
+      if (url.isNotEmpty) _categoryUrlCache[key] = url;
+      return url;
+    });
+
+    _categoryUrlFutures[key] = future;
+    return future;
   }
 
   Future<String> getCategoryImageUrl(String category) async {
@@ -222,7 +243,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    
+
     final fullName = (_currentUserProfile?.name.trim().isNotEmpty ?? false)
         ? _currentUserProfile!.name.trim()
         : "User";
@@ -238,7 +259,10 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TopSettingsTitleWidget(showCloudd: true, showNotificationIcon: true),
+                  TopSettingsTitleWidget(
+                    showCloudd: true,
+                    showNotificationIcon: true,
+                  ),
 
                   const SizedBox(height: 10),
 
@@ -343,8 +367,11 @@ class _HomePageState extends State<HomePage> {
                                         CrossAxisAlignment.center,
                                     children: [
                                       FutureBuilder<String>(
-                                        future: getCategoryImageUrl(category),
+                                        future: getCategoryImageUrlCached(
+                                          category,
+                                        ),
                                         builder: (context, snapshot) {
+                                          final url = snapshot.data;
                                           return Container(
                                             width: 65,
                                             height: 65,
@@ -359,14 +386,14 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                             clipBehavior: Clip.antiAlias,
                                             child:
-                                                snapshot.hasData &&
-                                                    snapshot.data!.isNotEmpty
-                                                ? ImageCacheService().getCachedImage(
-                                                    imageUrl: snapshot.data!,
-                                                    fit: BoxFit.cover,
-                                                    width: 65,
-                                                    height: 65,
-                                                  )
+                                                (url != null && url.isNotEmpty)
+                                                ? ImageCacheService()
+                                                      .getCachedImage(
+                                                        imageUrl: url,
+                                                        fit: BoxFit.cover,
+                                                        width: 65,
+                                                        height: 65,
+                                                      )
                                                 : const Icon(
                                                     Icons.category,
                                                     color: Colors.white,
@@ -382,9 +409,7 @@ class _HomePageState extends State<HomePage> {
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: theme
-                                              .textTheme
-                                              .bodySmall
+                                          style: theme.textTheme.bodySmall
                                               ?.copyWith(fontSize: 12),
                                         ),
                                       ),
@@ -476,11 +501,13 @@ class _HomePageState extends State<HomePage> {
                                                   experience
                                                       .imageUrl!
                                                       .isNotEmpty)
-                                              ? ImageCacheService().getCachedImage(
-                                                  imageUrl: experience.imageUrl!,
-                                                  width: double.infinity,
-                                                  fit: BoxFit.cover,
-                                                )
+                                              ? ImageCacheService()
+                                                    .getCachedImage(
+                                                      imageUrl:
+                                                          experience.imageUrl!,
+                                                      width: double.infinity,
+                                                      fit: BoxFit.cover,
+                                                    )
                                               : Container(
                                                   color: Colors.grey[300],
                                                   child: const Center(
@@ -502,9 +529,7 @@ class _HomePageState extends State<HomePage> {
                                               experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: theme
-                                                  .textTheme
-                                                  .bodyMedium
+                                              style: theme.textTheme.bodyMedium
                                                   ?.copyWith(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.bold,
@@ -513,9 +538,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
-                                              style: theme
-                                                  .textTheme
-                                                  .bodySmall
+                                              style: theme.textTheme.bodySmall
                                                   ?.copyWith(fontSize: 12),
                                             ),
                                           ],
@@ -606,11 +629,13 @@ class _HomePageState extends State<HomePage> {
                                                   experience
                                                       .imageUrl!
                                                       .isNotEmpty)
-                                              ? ImageCacheService().getCachedImage(
-                                                  imageUrl: experience.imageUrl!,
-                                                  width: double.infinity,
-                                                  fit: BoxFit.cover,
-                                                )
+                                              ? ImageCacheService()
+                                                    .getCachedImage(
+                                                      imageUrl:
+                                                          experience.imageUrl!,
+                                                      width: double.infinity,
+                                                      fit: BoxFit.cover,
+                                                    )
                                               : Container(
                                                   color: Colors.grey[300],
                                                   child: const Center(
@@ -632,9 +657,7 @@ class _HomePageState extends State<HomePage> {
                                               experience.name,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: theme
-                                                  .textTheme
-                                                  .bodyMedium
+                                              style: theme.textTheme.bodyMedium
                                                   ?.copyWith(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.bold,
@@ -643,9 +666,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${experience.booths.length} booth${experience.booths.length == 1 ? '' : 's'}',
-                                              style: theme
-                                                  .textTheme
-                                                  .bodySmall
+                                              style: theme.textTheme.bodySmall
                                                   ?.copyWith(fontSize: 12),
                                             ),
                                           ],
@@ -790,24 +811,25 @@ class _HomePageState extends State<HomePage> {
                                                 top: Radius.circular(12),
                                               ),
                                           child: displayUrl != null
-                                              ? ImageCacheService().getCachedImage(
-                                                  imageUrl: displayUrl,
-                                                  fit: BoxFit.cover,
-                                                  width: double.infinity,
-                                                  height: 100,
-                                                  errorWidget: Container(
-                                                    color: const Color(
-                                                      0xFFEFEFEF,
-                                                    ),
-                                                    child: const Center(
-                                                      child: Icon(
-                                                        Icons.image,
-                                                        size: 40,
-                                                        color: Colors.grey,
+                                              ? ImageCacheService()
+                                                    .getCachedImage(
+                                                      imageUrl: displayUrl,
+                                                      fit: BoxFit.cover,
+                                                      width: double.infinity,
+                                                      height: 100,
+                                                      errorWidget: Container(
+                                                        color: const Color(
+                                                          0xFFEFEFEF,
+                                                        ),
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons.image,
+                                                            size: 40,
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ),
-                                                )
+                                                    )
                                               : Container(
                                                   color: const Color(
                                                     0xFFEFEFEF,
@@ -830,9 +852,7 @@ class _HomePageState extends State<HomePage> {
                                           children: [
                                             Text(
                                               rp.boothName,
-                                              style: theme
-                                                  .textTheme
-                                                  .bodySmall
+                                              style: theme.textTheme.bodySmall
                                                   ?.copyWith(
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w700,
@@ -843,9 +863,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               rp.device,
-                                              style: theme
-                                                  .textTheme
-                                                  .bodySmall
+                                              style: theme.textTheme.bodySmall
                                                   ?.copyWith(
                                                     fontSize: 10,
                                                     color: theme
@@ -862,9 +880,7 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               rp.experienceName,
-                                              style: theme
-                                                  .textTheme
-                                                  .bodySmall
+                                              style: theme.textTheme.bodySmall
                                                   ?.copyWith(fontSize: 10),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,

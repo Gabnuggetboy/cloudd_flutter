@@ -110,6 +110,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 showSettings: false,
                 showNotifications: true,
                 showNotificationIcon: false,
+                showBackArrow: true,
               ),
             ),
             Expanded(

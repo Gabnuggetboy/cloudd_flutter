@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:cloudd_flutter/manager/add_icubecontent_page.dart';
 import 'package:cloudd_flutter/manager/add_irigcontent_page.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
-import 'package:cloudd_flutter/services/recently_played_service.dart';
 import 'package:cloudd_flutter/services/image_caching_service.dart';
+import 'package:cloudd_flutter/services/queue_service.dart';
 import 'package:cloudd_flutter/models/experience.dart';
 import 'package:cloudd_flutter/user/queueing_page.dart';
 
@@ -36,63 +37,32 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     'iRig': true,
     'Storytime': true,
   };
-
-  Map<String, String?> runningContent = {};
-  final Map<String, DateTime?> runningStart = {};
-  final Map<String, String?> runningRecentDocId = {};
-  final Map<String, DateTime?> _lastStateUpdateTime = {};
-  static const Duration _pollDebounce = Duration(milliseconds: 1000);
+  final Map<String, bool> deviceOffline = {
+    'iCube': false,
+    'iCreate': false,
+    'iRig': false,
+    'Storytime': false,
+  };
 
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
 
-  final List<String> devices = ['iCube', 'iRig', 'iCreate', 'Storytime'];
+  final List<String> devices = QueueService.devices;
   String? _selectedDevice;
 
-  String? _currentDeviceIP;
-  final Map<String, String?> _queuedContentByDevice = {};
-  final Map<String, String?> _queuedBoothNameByDevice = {};
-  final Map<String, String?> _queuedLogoUrlByDevice = {};
-  final Map<String, bool> _isAutoLaunchActiveByDevice = {};
   bool _isRunningStatusPolling = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDevice = devices.first; // Select first device by default
-    // Initialize queue tracking for all devices
-    for (final device in devices) {
-      _queuedContentByDevice[device] = null;
-      _queuedBoothNameByDevice[device] = null;
-      _queuedLogoUrlByDevice[device] = null;
-      _isAutoLaunchActiveByDevice[device] = false;
-    }
+    _selectedDevice = devices.first;
     _loadAllData();
-    _getCurrentDeviceIP();
     _startRunningStatusPolling();
-  }
-
-  Future<void> _getCurrentDeviceIP() async {
-    try {
-      // Call the dedicated /client_ip endpoint to establish our device's identity
-      final result = await DeviceLoadingService.getClientIP('iCube');
-      if (result.error == null && result.clientIP != null) {
-        setState(() {
-          _currentDeviceIP = result.clientIP;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error getting device IP: $e');
-    }
   }
 
   @override
   void dispose() {
     searchController.dispose();
-    // Stop all auto-launch monitors
-    for (final device in devices) {
-      _isAutoLaunchActiveByDevice[device] = false;
-    }
     _isRunningStatusPolling = false;
     super.dispose();
   }
@@ -104,126 +74,14 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   }
 
   Future<void> _pollRunningStatus() async {
+    final queueService = QueueService();
     while (_isRunningStatusPolling && mounted) {
       try {
-        final Map<String, String?> latestRunning = {};
-
-        // Fetch statuses in parallel for faster UI updates
-        await Future.wait(
-          devices.map((device) async {
-            final status = await DeviceLoadingService.checkLaunchedClientIP(
-              device,
-            );
-
-            // Only track content started from this client; ignore others
-            if (_currentDeviceIP != null &&
-                status.clientIP != null &&
-                status.clientIP != _currentDeviceIP) {
-              latestRunning[device] = null;
-            } else if (status.status == 'content_running') {
-              latestRunning[device] = status.runningContent;
-            } else {
-              latestRunning[device] = null;
-            }
-          }),
-        );
-
-        if (mounted && _isRunningStatusPolling) {
-          setState(() {
-            for (final entry in latestRunning.entries) {
-              // Skip updating if we recently made a local state change to this device
-              // to prevent flashing/flickering from rapid polling updates
-              final lastUpdate = _lastStateUpdateTime[entry.key];
-              if (lastUpdate != null &&
-                  DateTime.now().difference(lastUpdate) < _pollDebounce) {
-                continue;
-              }
-              runningContent[entry.key] = entry.value;
-            }
-          });
-        }
-
+        await queueService.pollAllDevicesRunningStatus();
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
         debugPrint('Error polling running status: $e');
         await Future.delayed(const Duration(milliseconds: 500));
-      }
-    }
-  }
-
-  void _startAutoLaunchMonitor(
-    String device,
-    String contentName, {
-    String? boothName,
-    String? logoUrl,
-  }) {
-    _queuedContentByDevice[device] = contentName;
-    _queuedBoothNameByDevice[device] = boothName ?? contentName;
-    _queuedLogoUrlByDevice[device] = logoUrl;
-    _isAutoLaunchActiveByDevice[device] = true;
-    _checkAndLaunchWhenTurn(device);
-  }
-
-  void _checkAndLaunchWhenTurn(String device) {
-    if (_isAutoLaunchActiveByDevice[device] != true ||
-        _queuedContentByDevice[device] == null) {
-      return;
-    }
-
-    Future.delayed(const Duration(seconds: 2), () async {
-      if (!mounted || _isAutoLaunchActiveByDevice[device] != true) return;
-
-      try {
-        final positionResult = await DeviceLoadingService.getQueuePosition(
-          device,
-        );
-
-        if (!mounted || _isAutoLaunchActiveByDevice[device] != true) return;
-
-        if (positionResult.queuePosition == 0) {
-          // User's turn! Auto-launch the content
-          _isAutoLaunchActiveByDevice[device] = false;
-          await launchContent(
-            device,
-            _queuedContentByDevice[device]!,
-            boothName: _queuedBoothNameByDevice[device],
-            logoUrl: _queuedLogoUrlByDevice[device],
-          );
-          // Don't clear the queued content here, let the user manually dequeue after
-        } else {
-          // Not yet user's turn, check again soon
-          _checkAndLaunchWhenTurn(device);
-        }
-      } catch (e) {
-        debugPrint('Error checking queue position: $e');
-        if (_isAutoLaunchActiveByDevice[device] == true && mounted) {
-          // Retry on error
-          _checkAndLaunchWhenTurn(device);
-        }
-      }
-    });
-  }
-
-  Future<void> _refreshQueueState() async {
-    // Check queue positions for all devices and clear stale entries
-    for (final device in devices) {
-      if (_queuedContentByDevice[device] != null) {
-        try {
-          final positionResult = await DeviceLoadingService.getQueuePosition(
-            device,
-          );
-          // If not in queue anymore (position -1), clear the queued content
-          if (positionResult.queuePosition == -1) {
-            setState(() {
-              _queuedContentByDevice[device] = null;
-              _queuedBoothNameByDevice[device] = null;
-              _queuedLogoUrlByDevice[device] = null;
-              _isAutoLaunchActiveByDevice[device] = false;
-            });
-          }
-        } catch (e) {
-          debugPrint('Error checking queue position for $device: $e');
-        }
       }
     }
   }
@@ -265,16 +123,12 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
   Future<void> _loadAllData() async {
     _fetchExperience();
 
-    // Not using fetch all contents function because it will batch load, and make it slower
-    // So loading will be parallel instead, which allows each device section to display as soon as their data arrives
     final futures = <Future<void>>[];
-
     futures.add(_fetchDeviceContent('iCube'));
     futures.add(_fetchDeviceContent('iCreate'));
     futures.add(_fetchDeviceContent('iRig'));
     futures.add(_fetchDeviceContent('Storytime'));
 
-    // Wait for all to complete, but each updates UI independently
     await Future.wait(futures);
   }
 
@@ -303,18 +157,38 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
 
       if (!mounted) return;
 
+      // Check if the result has an error (device offline or failed to load)
+      final bool isOffline =
+          result.error != null && _isDeviceOfflineError(result.error!);
+
       setState(() {
         deviceContents[device] = result;
         deviceLoading[device] = false;
+        deviceOffline[device] = isOffline;
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         deviceLoading[device] = false;
+        deviceOffline[device] = _isDeviceOfflineError(e.toString());
       });
       debugPrint('Error loading $device: $e');
     }
+  }
+
+  // Check if an error message indicates the device is offline
+  bool _isDeviceOfflineError(String message) {
+    final lowerMessage = message.toLowerCase();
+    return lowerMessage.contains('timeout') ||
+        lowerMessage.contains('timed out') ||
+        lowerMessage.contains('connection refused') ||
+        lowerMessage.contains('connection failed') ||
+        lowerMessage.contains('socketexception') ||
+        lowerMessage.contains('no route to host') ||
+        lowerMessage.contains('network is unreachable') ||
+        lowerMessage.contains('host unreachable') ||
+        lowerMessage.contains('failed host lookup');
   }
 
   Future<void> _fetchExperience() async {
@@ -352,164 +226,70 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     }
   }
 
-  // Logic of launchContent simplified:
-  // First checks if there is any content running on the device
-  // If there is content running and the client IP matches the user's device IP, then when the user presses play
-  // for another content in same device, it will stop the previous content and launch the new one
-
-  // but if there is content running and the client IP does NOT match the user's device IP,
-  // then it shows the "Device in Use" pop up and doesnt launch the content
-
-  Future<void> launchContent(
+  Future<void> _handleLaunchContent(
     String device,
     String contentName, {
     String? boothName,
     String? logoUrl,
   }) async {
-    // First, establish our device IP if we don't have it yet
-    // This ensures we know what IP we're launching from before checking device status
-    if (_currentDeviceIP == null) {
-      // Make a dummy call to the server to establish our IP
-      try {
-        await DeviceLoadingService.checkLaunchedClientIP(device);
-        // After this call, the server knows our IP, even if no content is running
-        // We'll get our actual IP confirmed after the first successful launch
-      } catch (e) {
-        debugPrint('Error establishing device IP: $e');
-      }
-    }
+    final queueService = context.read<QueueService>();
 
-    // Check the device's client IP status
-    final clientIPResult = await DeviceLoadingService.checkLaunchedClientIP(
+    final result = await queueService.launchContent(
       device,
+      contentName,
+      boothName: boothName,
+      logoUrl: logoUrl,
+      experienceId: widget.experienceId,
+      experienceName: experience?.name ?? widget.experienceName,
     );
 
-    // If there's content running, check if its from another client
-    if (clientIPResult.status == 'content_running' &&
-        clientIPResult.clientIP != null) {
-      // If we still don't have our own IP, establish it now by comparing
-      if (_currentDeviceIP == null) {
-        _currentDeviceIP = clientIPResult.clientIP;
-      }
+    if (!mounted) return;
 
-      // Check if someone else is using the device by comparing IPs
-      if (clientIPResult.clientIP != _currentDeviceIP) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text('$device In Use'),
-            content: Text('Somebody else is using $device'),
-            actionsAlignment: MainAxisAlignment.spaceBetween,
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: Colors.orange),
-                onPressed: () async {
-                  // Enqueue to the Flask API
-                  try {
-                    final result = await DeviceLoadingService.enqueueDevice(
-                      device,
-                    );
-                    if (result.success) {
-                      // Start monitoring for when it's user's turn
-                      _startAutoLaunchMonitor(
-                        device,
-                        contentName,
-                        boothName: boothName ?? contentName,
-                        logoUrl: logoUrl,
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint('Error enqueuing: $e');
-                  }
+    if (result.deviceInUse) {
+      // Show "Device in Use" dialog with queue option
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text('$device In Use'),
+          content: Text('Somebody else is using $device'),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              onPressed: () async {
+                final success = await queueService.enqueue(
+                  device,
+                  contentName,
+                  boothName: boothName ?? contentName,
+                  logoUrl: logoUrl,
+                );
 
-                  if (!mounted) return;
-                  Navigator.pop(context);
+                if (!mounted) return;
+                Navigator.pop(context);
+
+                if (success) {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => QueueingPage(
-                        device: device,
-                        contentName: contentName,
-                        queuedContentMap: Map<String, String?>.from(
-                          _queuedContentByDevice,
-                        ),
-                        runningStartMap: Map<String, DateTime?>.from(
-                          runningStart,
-                        ),
-                        runningRecentDocIdMap: Map<String, String?>.from(
-                          runningRecentDocId,
-                        ),
-                      ),
+                      builder: (_) => QueueingPage(device: device),
                     ),
                   );
-                  // Refresh queue state after returning
-                  await _refreshQueueState();
-                },
-                child: const Text('Add to queue'),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
-
-      // If we're here it means own content running
-      // Stop the current content before launching new one
-      if (clientIPResult.runningContent != null &&
-          clientIPResult.runningContent != contentName) {
-        await stopContent(device, clientIPResult.runningContent!);
-      }
-    }
-
-    // Also handle local tracking
-    if (runningContent[device] != null &&
-        runningContent[device] != contentName) {
-      await stopContent(device, runningContent[device]!);
-    }
-
-    final result = await DeviceLoadingService.launchContent(
-      device,
-      contentName,
-    );
-    if (!mounted) return;
-
-    if (result.success) {
-      setState(() {
-        runningContent[device] = contentName;
-        _lastStateUpdateTime[device] = DateTime.now();
-      });
-
-      // Update our device IP after successful launch - this confirms our actual IP
-      if (_currentDeviceIP == null) {
-        _getCurrentDeviceIP();
-      }
-
+                  await queueService.refreshQueueState();
+                }
+              },
+              child: const Text('Add to queue'),
+            ),
+          ],
+        ),
+      );
+    } else if (result.success) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(result.message)));
-
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        try {
-          final docId = await RecentlyPlayedService.addRecentlyPlayed(
-            userId: uid,
-            device: device,
-            boothName: boothName ?? contentName,
-            experienceId: widget.experienceId,
-            experienceName: experience?.name ?? widget.experienceName,
-            logoUrl: logoUrl,
-          );
-          runningStart[device] = DateTime.now();
-          runningRecentDocId[device] = docId;
-        } catch (e) {
-          debugPrint('RecentlyPlayed error: $e');
-        }
-      }
 
       if (device == 'Storytime') {
         Navigator.push(
@@ -524,34 +304,11 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     }
   }
 
-  Future<void> stopContent(String device, String contentName) async {
-    final result = await DeviceLoadingService.stopContent(device, contentName);
+  Future<void> _handleStopContent(String device, String contentName) async {
+    final queueService = context.read<QueueService>();
+    final result = await queueService.stopContent(device, contentName);
+
     if (!mounted) return;
-
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final start = runningStart[device];
-    final docId = runningRecentDocId[device];
-
-    if (uid != null && start != null && docId != null) {
-      final seconds = DateTime.now().difference(start).inSeconds;
-      await RecentlyPlayedService.updatePlaytimeByDocId(
-        userId: uid,
-        docId: docId,
-        seconds: seconds,
-      );
-    }
-
-    setState(() {
-      runningContent[device] = null;
-      _lastStateUpdateTime[device] = DateTime.now();
-      runningStart.remove(device);
-      runningRecentDocId.remove(device);
-      // If the stopped content was queued, clear it from queue tracking
-      if (_queuedContentByDevice[device] == contentName) {
-        _queuedContentByDevice[device] = null;
-        _isAutoLaunchActiveByDevice[device] = false;
-      }
-    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -613,159 +370,171 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
         : null;
 
     final title = contentName ?? device;
-    final isRunning = runningContent[device] == contentName;
-    final isQueued = _queuedContentByDevice[device] == contentName;
 
-    final buttonSize = const Size(110, 40);
-    const stopIconSize = 20.0;
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (iconUrl != null)
-                    ImageCacheService().getCachedImage(
-                      imageUrl: iconUrl,
-                      fit: BoxFit.cover,
-                      errorWidget: _buildFallbackIcon(),
-                    )
-                  else
-                    _buildFallbackIcon(),
-                  if (isRunning)
-                    Container(
-                      color: Colors.black54,
-                      child: const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.play_circle_fill,
-                              color: Colors.white,
-                              size: 48,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Running',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+    return Consumer<QueueService>(
+      builder: (context, queueService, child) {
+        final state = queueService.getDeviceState(device);
+        final currentClientIP = queueService.currentClientIP;
+        // Only show as running if it's THIS user's content (matching client IP)
+        final isRunningByThisUser =
+            state.runningContent == contentName &&
+            currentClientIP != null &&
+            state.runningClientIP == currentClientIP;
+        final isRunning = isRunningByThisUser;
+        final isQueued = state.queuedContent == contentName;
+
+        final buttonSize = const Size(110, 40);
+        const stopIconSize = 20.0;
+
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              children: [
-                _buildScalableTitle(title),
-                const SizedBox(height: 8),
-                if (isRunning)
-                  ElevatedButton.icon(
-                    onPressed: () => stopContent(device, contentName!),
-                    icon: const Icon(Icons.stop_circle, size: stopIconSize),
-                    label: const Text('Stop'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: buttonSize,
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                  )
-                else if (isQueued)
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => QueueingPage(
-                            device: device,
-                            contentName: contentName,
-                            runningStartMap: Map<String, DateTime?>.from(
-                              runningStart,
-                            ),
-                            runningRecentDocIdMap: Map<String, String?>.from(
-                              runningRecentDocId,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (iconUrl != null)
+                        ImageCacheService().getCachedImage(
+                          imageUrl: iconUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: _buildFallbackIcon(),
+                        )
+                      else
+                        _buildFallbackIcon(),
+                      if (isRunning)
+                        Container(
+                          color: Colors.black54,
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.play_circle_fill,
+                                  color: Colors.white,
+                                  size: 48,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Running',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      );
-                      // Refresh queue state after returning
-                      await _refreshQueueState();
-                    },
-                    icon: const Icon(Icons.queue, size: stopIconSize),
-                    label: const Text(
-                      'In Queue',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: buttonSize,
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                  )
-                else
-                  ElevatedButton(
-                    onPressed: () {
-                      if (contentName != null) {
-                        launchContent(
-                          device,
-                          contentName,
-                          boothName: contentName,
-                          logoUrl: matched?['icon_url'] != null
-                              ? '$baseUrl${matched!['icon_url']}'
-                              : null,
-                        );
-                      } else {
-                        if (device == 'iCube') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  iCubeTestPage(selectionMode: false),
-                            ),
-                          );
-                        } else if (device == 'iRig') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  IrigTestPage(selectionMode: false),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: buttonSize,
-                      backgroundColor: const Color.fromRGBO(143, 148, 251, 1),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(contentName != null ? 'Play' : 'Open'),
+                    ],
                   ),
-              ],
-            ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  children: [
+                    _buildScalableTitle(title),
+                    const SizedBox(height: 8),
+                    if (isRunning)
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            _handleStopContent(device, contentName!),
+                        icon: const Icon(Icons.stop_circle, size: stopIconSize),
+                        label: const Text('Stop'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: buttonSize,
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                      )
+                    else if (isQueued)
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => QueueingPage(device: device),
+                            ),
+                          );
+                          await queueService.refreshQueueState();
+                        },
+                        icon: const Icon(Icons.queue, size: stopIconSize),
+                        label: const Text(
+                          'In Queue',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: buttonSize,
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                        ),
+                      )
+                    else
+                      ElevatedButton(
+                        onPressed: () {
+                          if (contentName != null) {
+                            _handleLaunchContent(
+                              device,
+                              contentName,
+                              boothName: contentName,
+                              logoUrl: matched?['icon_url'] != null
+                                  ? '$baseUrl${matched!['icon_url']}'
+                                  : null,
+                            );
+                          } else {
+                            if (device == 'iCube') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      iCubeTestPage(selectionMode: false),
+                                ),
+                              );
+                            } else if (device == 'iRig') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      IrigTestPage(selectionMode: false),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: buttonSize,
+                          backgroundColor: const Color.fromRGBO(
+                            143,
+                            148,
+                            251,
+                            1,
+                          ),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text(contentName != null ? 'Play' : 'Open'),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildSection(String title, String deviceName, String keyword) {
     final isDeviceLoading = deviceLoading[deviceName] ?? false;
+    final isDeviceOffline = deviceOffline[deviceName] ?? false;
 
     if (experienceLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -794,9 +563,17 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
       return const Center(child: Text('No booths available'));
     }
 
-    // Show loading only for this specific device section
     if (isDeviceLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (isDeviceOffline) {
+      return const Center(
+        child: Text(
+          'Device is offline',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
     }
 
     return GridView.builder(
@@ -820,280 +597,286 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
     final appBarActionColor =
         theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface;
 
-    return WillPopScope(
-      onWillPop: () async {
-        final hasRunning = runningContent.values.any(
-          (v) => v != null && v.isNotEmpty,
-        );
-        final hasQueued = _queuedContentByDevice.values.any(
-          (v) => v != null && v.isNotEmpty,
+    return Consumer<QueueService>(
+      builder: (context, queueService, child) {
+        final currentClientIP = queueService.currentClientIP;
+        // Only consider content as "running" if it belongs to THIS user
+        final hasRunning = QueueService.devices.any((d) {
+          final state = queueService.getDeviceState(d);
+          return state.runningContent != null &&
+              currentClientIP != null &&
+              state.runningClientIP == currentClientIP;
+        });
+        final hasQueued = QueueService.devices.any(
+          (d) => queueService.getQueuedContent(d) != null,
         );
 
-        // Check if user is in a queue
-        if (hasQueued) {
-          await showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('In Queue'),
-              content: const Text(
-                'You are currently in a queue. Please remove yourself from the queue before exiting.',
-              ),
+        return PopScope(
+          canPop: !hasRunning && !hasQueued,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+
+            if (hasQueued) {
+              await showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('In Queue'),
+                  content: const Text(
+                    'You are currently in a queue. Please remove yourself from the queue before exiting.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+              return;
+            }
+
+            if (hasRunning) {
+              final stopAll = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Content Running'),
+                  content: const Text('Please stop all content before exiting'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        'Stop all',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (stopAll == true) {
+                for (final device in QueueService.devices) {
+                  final state = queueService.getDeviceState(device);
+                  // Only stop content that belongs to THIS user
+                  if (state.runningContent != null &&
+                      currentClientIP != null &&
+                      state.runningClientIP == currentClientIP) {
+                    await queueService.stopContent(
+                      device,
+                      state.runningContent!,
+                    );
+                  }
+                }
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+              }
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text('Explore: $displayName'),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const QueueingPage()),
+                    );
+                    await queueService.refreshQueueState();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: appBarActionColor,
+                  ),
+                  child: const Text('View queue'),
                 ),
               ],
             ),
-          );
-          return false;
-        }
+            bottomNavigationBar: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: signupStream(),
+                  builder: (context, snapshot) {
+                    final isSignedUp =
+                        snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                    final signupDocId = isSignedUp
+                        ? snapshot.data!.docs.first.id
+                        : null;
 
-        if (!hasRunning) return true;
-
-        final stopAll = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Content Running'),
-            content: const Text('Please stop all content before exiting'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Stop all',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
-          ),
-        );
-
-        if (stopAll == true) {
-          for (final entry in runningContent.entries.where(
-            (e) => e.value != null,
-          )) {
-            await stopContent(entry.key, entry.value!);
-          }
-          return true;
-        }
-        return false;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Explore: $displayName'),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                // Pass all queued content to QueueingPage
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => QueueingPage(
-                      queuedContentMap: Map<String, String?>.from(
-                        _queuedContentByDevice,
-                      ),
-                      runningStartMap: Map<String, DateTime?>.from(
-                        runningStart,
-                      ),
-                      runningRecentDocIdMap: Map<String, String?>.from(
-                        runningRecentDocId,
-                      ),
-                    ),
-                  ),
-                );
-                // Refresh queue state after returning
-                await _refreshQueueState();
-              },
-              style: TextButton.styleFrom(foregroundColor: appBarActionColor),
-              child: const Text('View queue'),
-            ),
-          ],
-        ),
-        bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: StreamBuilder<QuerySnapshot>(
-              stream: signupStream(),
-              builder: (context, snapshot) {
-                final isSignedUp =
-                    snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-
-                final signupDocId = isSignedUp
-                    ? snapshot.data!.docs.first.id
-                    : null;
-
-                return SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (isSignedUp) {
-                        await cancelSignUp(signupDocId!);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Signup cancelled')),
-                        );
-                      } else {
-                        await signUp();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Successfully signed up'),
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (isSignedUp) {
+                            await cancelSignUp(signupDocId!);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Signup cancelled')),
+                            );
+                          } else {
+                            await signUp();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Successfully signed up'),
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isSignedUp
+                              ? Colors.red
+                              : const Color.fromRGBO(143, 148, 251, 1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSignedUp
-                          ? Colors.red
-                          : const Color.fromRGBO(143, 148, 251, 1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isSignedUp
+                              ? 'Cancel Sign Up'
+                              : 'Sign Up for Experience',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      isSignedUp ? 'Cancel Sign Up' : 'Sign Up for Experience',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-
-        body: RefreshIndicator(
-          onRefresh: _loadAllData,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: 'Search contents',
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              searchController.clear();
-                              setState(() => searchQuery = '');
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onChanged: (v) => setState(() => searchQuery = v),
+                    );
+                  },
                 ),
-                const SizedBox(height: 5),
-                // Device icons horizontally
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+              ),
+            ),
+            body: RefreshIndicator(
+              onRefresh: _loadAllData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search contents',
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  searchController.clear();
+                                  setState(() => searchQuery = '');
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onChanged: (v) => setState(() => searchQuery = v),
                     ),
-                  ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 0.0),
-                      child: Row(
-                        children: devices.map((device) {
-                          final isSelected = _selectedDevice == device;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 12.0),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedDevice = device;
-                                });
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: isSelected
-                                      ? Border.all(
-                                          color: const Color.fromARGB(
-                                            255,
-                                            168,
-                                            171,
-                                            228,
+                    const SizedBox(height: 5),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 0.0),
+                          child: Row(
+                            children: devices.map((device) {
+                              final isSelected = _selectedDevice == device;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12.0),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedDevice = device;
+                                    });
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: isSelected
+                                          ? Border.all(
+                                              color: const Color.fromARGB(
+                                                255,
+                                                168,
+                                                171,
+                                                228,
+                                              ),
+                                              width: 3,
+                                            )
+                                          : null,
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: ImageCacheService().getCachedImage(
+                                        imageUrl: DeviceLoadingService
+                                            .deviceLogos[device]!,
+                                        width: 64,
+                                        height: 64,
+                                        fit: BoxFit.contain,
+                                        errorWidget: Container(
+                                          width: 64,
+                                          height: 64,
+                                          color: Colors.grey[300],
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.vrpano,
+                                              size: 32,
+                                              color: Colors.grey[600],
+                                            ),
                                           ),
-                                          width: 3,
-                                        )
-                                      : null,
-                                  // color: isSelected
-                                  //     ? Colors.transparent
-                                  //     : Colors.transparent,
-                                ),
-                                padding: const EdgeInsets.all(4),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: ImageCacheService().getCachedImage(
-                                    imageUrl: DeviceLoadingService
-                                        .deviceLogos[device]!,
-                                    width: 64,
-                                    height: 64,
-                                    fit: BoxFit.contain,
-                                    errorWidget: Container(
-                                      width: 64,
-                                      height: 64,
-                                      color: Colors.grey[300],
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.vrpano,
-                                          size: 32,
-                                          color: Colors.grey[600],
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    if (_selectedDevice == null)
+                      const Center(
+                        child: Text(
+                          'Select a device to view contents',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      )
+                    else ...[
+                      _buildSection(
+                        '${_selectedDevice!} Contents',
+                        _selectedDevice!,
+                        _selectedDevice == 'iCube'
+                            ? 'icube'
+                            : _selectedDevice == 'iCreate'
+                            ? 'icreate'
+                            : _selectedDevice == 'iRig'
+                            ? 'irig'
+                            : 'storytime',
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                if (_selectedDevice == null)
-                  const Center(
-                    child: Text(
-                      'Select a device to view contents',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  )
-                else ...[
-                  _buildSection(
-                    '${_selectedDevice!} Contents',
-                    _selectedDevice!,
-                    _selectedDevice == 'iCube'
-                        ? 'icube'
-                        : _selectedDevice == 'iCreate'
-                        ? 'icreate'
-                        : _selectedDevice == 'iRig'
-                        ? 'irig'
-                        : 'storytime',
-                  ),
-                ],
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
