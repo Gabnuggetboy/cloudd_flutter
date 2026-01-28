@@ -3,41 +3,35 @@ import 'package:firebase_storage/firebase_storage.dart';
 class ARAssets {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  /// Fetches the mind target + all images (img_1.png, img_2.png, ...)
+  /// Fetches the mind target + all 3d images (model_1.glb, model_2.glb, ...)
   /// automatically from Storage folder: ar/
-  static Future<Map<String, String>> fetchArUrls({
-    String mindPath = 'ar/targets_new.mind',
-    String folderPath = 'ar',
-  }) async {
-    // 1) mind file
+    static Future<Map<String, String>> fetchArUrls({
+      String mindPath = 'ar/targets_new.mind',
+      String folderPath = 'ar',
+    }) 
+    async {
     final targetUrl = await _storage.ref(mindPath).getDownloadURL();
-
-    // 2) list files in /ar
     final listResult = await _storage.ref(folderPath).listAll();
 
-    // 3) filter image files that match img_#.png/jpg/jpeg
-    final imgRefs = listResult.items.where((ref) {
-      final name = ref.name.toLowerCase();
-      return RegExp(r'^img_\d+\.(png|jpg|jpeg)$').hasMatch(name);
+    final modelRefs = listResult.items.where((ref) {
+      return RegExp(r'^model_\d+\.glb$').hasMatch(ref.name.toLowerCase());
     }).toList();
 
-    // 4) sort by the number in img_#.ext
-    int imgNumber(Reference r) {
-      final m = RegExp(r'^img_(\d+)\.').firstMatch(r.name.toLowerCase());
-      return m == null ? 1 << 30 : int.parse(m.group(1)!);
-    }
+    modelRefs.sort((a, b) {
+      int n(Reference r) {
+        final m = RegExp(r'^model_(\d+)\.').firstMatch(r.name.toLowerCase());
+        return m == null ? 1 << 30 : int.parse(m.group(1)!);
+      }
+      return n(a).compareTo(n(b));
+    });
 
-    imgRefs.sort((a, b) => imgNumber(a).compareTo(imgNumber(b)));
-
-    // 5) get download URLs
     final urls = <String, String>{'target': targetUrl};
 
-    for (int i = 0; i < imgRefs.length; i++) {
-      final url = await imgRefs[i].getDownloadURL();
-      urls['img${i + 1}'] = url; // img1, img2, img3... in order
+    for (int i = 0; i < modelRefs.length; i++) {
+      urls['model${i + 1}'] = await modelRefs[i].getDownloadURL();
     }
 
     return urls;
   }
-}
 
+}
