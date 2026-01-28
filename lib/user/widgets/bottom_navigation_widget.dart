@@ -47,7 +47,8 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
   int _initialIndexFromContext(BuildContext ctx) {
     final type = ctx.widget.runtimeType;
     if (type == HomePage) return 0;
-    if (type == TradingPage) return 1;
+    if (type == MindARPage) return 1;
+    //if (type == TradingPage) return 1;
     // if (type == CameraPage) return 2;
     if (type == NotificationsPage) return 3;
     if (type == AccountPage) return 4;
@@ -121,7 +122,7 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                   onPressed: () {
                     _onTap(1);
                     // Only navigate if not already on TradingPage [NOW MIND AR PAGE]
-                    if (widget.context.widget.runtimeType != WorkInProgressPage) {
+                    if (widget.context.widget.runtimeType != MindARPage) {
                       // Navigator.pushReplacement(
                       //   context,
                       //   PageRouteBuilder(
@@ -132,9 +133,13 @@ class _BottomNavigationWidgetState extends State<BottomNavigationWidget> {
                       //     reverseTransitionDuration: Duration.zero,
                       //   ),
                       // );
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (_) => const MindARPage()),
+                        PageRouteBuilder(
+                          pageBuilder: (_, __, ___) => const MindARPage(),
+                          transitionDuration: Duration.zero,
+                          reverseTransitionDuration: Duration.zero,
+                        ),
                       );
                     }
                   },

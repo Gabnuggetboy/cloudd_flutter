@@ -13,6 +13,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:cloudd_flutter/models/AR_Assets.dart';
+import 'package:cloudd_flutter/user/widgets/bottom_navigation_widget.dart';
 
 class MindARPage extends StatefulWidget {
   const MindARPage({super.key});
@@ -134,27 +135,25 @@ class _MindARPageState extends State<MindARPage> {
       maxBytes: 50 * 1024 * 1024, // 50MB
     );
 
-    // Collect img1..imgN keys in numeric order
-    final imgEntries = urls.entries
-        .where((e) => RegExp(r'^img\d+$').hasMatch(e.key))
+    // Collect model1..modelN keys in numeric order
+    final modelEntries = urls.entries
+        .where((e) => RegExp(r'^model\d+$').hasMatch(e.key))
         .toList()
       ..sort((a, b) {
-        int n(String k) => int.parse(k.replaceAll('img', ''));
+        int n(String k) => int.parse(k.replaceAll('model', ''));
         return n(a.key).compareTo(n(b.key));
       });
 
-    _imageCount = imgEntries.length;
+    _imageCount = modelEntries.length;
 
-    // Download each image and store as /img_#.png
-    await Future.wait(imgEntries.map((e) async {
-      final idx = int.parse(e.key.replaceAll('img', '')); // 1-based
-
-      final ext = _guessExtFromUrl(e.value); // png/jpg/jpeg
-      final localPath = '/img_$idx.$ext';
+    // Download each model and store as /model_#.glb
+    await Future.wait(modelEntries.map((e) async {
+      final idx = int.parse(e.key.replaceAll('model', '')); // 1-based
+      final localPath = '/model_$idx.glb';
 
       _byteCache[localPath] = await _downloadUrlBytes(
         e.value,
-        maxBytes: 20 * 1024 * 1024, // 20MB
+        maxBytes: 50 * 1024 * 1024, // increase for GLB if needed
       );
     }));
   }
@@ -170,13 +169,6 @@ class _MindARPageState extends State<MindARPage> {
       throw Exception('Failed to download bytes from: $url');
     }
     return data;
-  }
-
-  String _guessExtFromUrl(String url) {
-    final u = url.toLowerCase();
-    if (u.contains('.jpg')) return 'jpg';
-    if (u.contains('.jpeg')) return 'jpeg';
-    return 'png';
   }
 
   Future<void> _startLocalServer() async {
@@ -214,13 +206,20 @@ class _MindARPageState extends State<MindARPage> {
 
   Map<String, String> _headersFor(String fileName) {
     String contentType = 'application/octet-stream';
+
+    // I JUST KEPT THESE DATA TYPES FOR TRIAL, CODE IS NOT OPTIMISED FOR THESE
     if (fileName.endsWith('.html')) contentType = 'text/html; charset=utf-8';
     if (fileName.endsWith('.js')) contentType = 'application/javascript; charset=utf-8';
     if (fileName.endsWith('.png')) contentType = 'image/png';
     if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
       contentType = 'image/jpeg';
     }
+
+    // MAIN DATA TYPES USED
     if (fileName.endsWith('.mind')) contentType = 'application/octet-stream';
+    if (fileName.endsWith('.glb')) {
+      contentType = 'model/gltf-binary';
+    }
 
     return {
       'content-type': contentType,
@@ -232,31 +231,30 @@ class _MindARPageState extends State<MindARPage> {
   }
 
   String _buildIndexHtml() {
-    // Build <img> tags + target entities dynamically based on _imageCount
-    final assetsImgs = List.generate(_imageCount, (i) {
+    final assetsModels = List.generate(_imageCount, (i) {
       final n = i + 1;
-
-      // Served the image as /img_n.<ext>
-      // Check cache keys; default to png.
-      final ext = _byteCache.containsKey('/img_$n.jpg')
-          ? 'jpg'
-          : _byteCache.containsKey('/img_$n.jpeg')
-              ? 'jpeg'
-              : 'png';
-
-      return '<img id="img$n" crossorigin="anonymous" src="/img_$n.$ext" />';
+      return '<a-asset-item id="model$n" src="/model_$n.glb"></a-asset-item>';
     }).join('\n');
 
     final entities = List.generate(_imageCount, (i) {
-      final n = i + 1; // image id
-      final targetIndex = i; // 0-based index for MindAR targets
+      final n = i + 1;
+      final targetIndex = i;
+
+      final yPos = (n == 3 || n == 4) ? -3.0 : 0.0;
+
       return '''
       <a-entity mindar-image-target="targetIndex: $targetIndex">
-        <a-plane src="#img$n" width="1" height="0.6"
-          material="transparent:true; opacity:1"></a-plane>
+        <a-gltf-model
+          src="#model$n"
+          position="0 $yPos 0"
+          rotation="0 0 0"
+          scale="0.5 0.5 0.5">
+        </a-gltf-model>
       </a-entity>
       ''';
     }).join('\n');
+
+
 
     return '''
       <!doctype html>
@@ -290,7 +288,7 @@ class _MindARPageState extends State<MindARPage> {
             embedded
           >
             <a-assets timeout="10000">
-              $assetsImgs
+              $assetsModels
             </a-assets>
 
             <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
@@ -305,11 +303,26 @@ class _MindARPageState extends State<MindARPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          if (_controller != null) WebViewWidget(controller: _controller!),
-          if (_loading) const Center(child: CircularProgressIndicator()),
-        ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            // WebView area
+            Expanded(
+              child: Stack(
+                children: [
+                  if (_controller != null) WebViewWidget(controller: _controller!),
+                  if (_loading) const Center(child: CircularProgressIndicator()),
+                ],
+              ),
+            ),
+
+            // Bottom nav area (always visible)
+            BottomNavigationWidget(
+              context: this.context, // or just: context
+              onIconTap: (index) {},
+            ),
+          ],
+        ),
       ),
     );
   }
