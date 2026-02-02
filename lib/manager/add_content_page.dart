@@ -288,23 +288,22 @@ class _AddContentPageState extends State<AddContentPage> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (iconUrl != null)
-                      ImageCacheService().getCachedImage(
-                        imageUrl: iconUrl,
-                        fit: BoxFit.cover,
-                        errorWidget: _buildFallbackThumb(),
-                      )
-                    else
-                      _buildFallbackThumb(),
+                    Opacity(
+                      opacity: selected ? 0.3 : 1.0,
+                      child: iconUrl != null
+                          ? ImageCacheService().getCachedImage(
+                              imageUrl: iconUrl,
+                              fit: BoxFit.cover,
+                              errorWidget: _buildFallbackThumb(),
+                            )
+                          : _buildFallbackThumb(),
+                    ),
                     if (selected)
-                      Container(
-                        color: Colors.black.withValues(alpha: 128),
-                        child: const Center(
-                          child: Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 48,
-                          ),
+                      const Center(
+                        child: Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 48,
                         ),
                       ),
                   ],

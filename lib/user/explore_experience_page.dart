@@ -264,6 +264,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                   contentName,
                   boothName: boothName ?? contentName,
                   logoUrl: logoUrl,
+                  experienceId: widget.experienceId,
+                  experienceName: experience?.name ?? widget.experienceName,
                 );
 
                 if (!mounted) return;
@@ -488,7 +490,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                                   ? '$baseUrl${matched!['icon_url']}'
                                   : null,
                             );
-                          } 
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           minimumSize: buttonSize,
