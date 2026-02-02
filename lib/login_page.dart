@@ -17,7 +17,7 @@ class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
@@ -79,13 +79,13 @@ class _LoginPageState extends State<LoginPage> {
       final appUser = AppUser.fromDoc(snap);
 
       // Refresh theme preference for the logged-in user
-      if (context.mounted) {
-        await Provider.of<ThemeProvider>(
-          context,
-          listen: false,
-        ).refreshThemePreference();
-      }
+      if (!mounted) return;
+      await Provider.of<ThemeProvider>(
+        context,
+        listen: false,
+      ).refreshThemePreference();
 
+      if (!mounted) return;
       // Redirect based on role
       if (appUser.isManager) {
         Navigator.pushReplacement(
@@ -181,7 +181,6 @@ Sdsda
         backgroundColor: Colors.white,
         body: SingleChildScrollView(
           physics: NeverScrollableScrollPhysics(),
-          child: Container(
             child: Column(
               children: <Widget>[
                 Container(
@@ -249,9 +248,7 @@ Sdsda
                             children: [
                               TextButton(
                                 style: TextButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(
-                                    0.85,
-                                  ),
+                                  backgroundColor: Colors.white.withValues(alpha: 217),
                                   padding: EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 8,
@@ -277,9 +274,7 @@ Sdsda
                               SizedBox(width: 8),
                               TextButton(
                                 style: TextButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(
-                                    0.85,
-                                  ),
+                                  backgroundColor: Colors.white.withValues(alpha: 217),
                                   padding: EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 8,
@@ -588,7 +583,6 @@ Sdsda
                 ),
               ],
             ),
-          ),
         ),
       ),
     );

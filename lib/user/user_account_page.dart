@@ -114,7 +114,7 @@ class AccountPage extends StatelessWidget {
                                 size: 50,
                                 color: Theme.of(
                                   context,
-                                ).iconTheme.color?.withOpacity(0.6),
+                                ).iconTheme.color?.withValues(alpha: 153),
                               )
                             : null,
                       ),
@@ -304,14 +304,4 @@ class AccountPage extends StatelessWidget {
     );
   }
 
-  Widget _displayBox(BuildContext context) {
-    return Container(
-      width: 70,
-      height: 70,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-      ),
-    );
-  }
 }

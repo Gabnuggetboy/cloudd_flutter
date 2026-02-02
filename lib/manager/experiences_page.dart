@@ -71,7 +71,9 @@ class _ExperiencesPageState extends State<ExperiencesPage> {
                           if ((data['owner']
                                   as Map<String, dynamic>?)?['uid'] ==
                               user.uid)
+                              {
                             return true;
+                        }
 
                           // Check if user is an accepted collaborator
                           final collaborators =

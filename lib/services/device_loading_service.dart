@@ -252,44 +252,6 @@ class DeviceLoadingService {
     }
   }
 
-  static Future<DeviceStatusResult> checkDeviceStatus(String device) async {
-    final base = getBaseUrl(device);
-    if (base.isEmpty) {
-      return DeviceStatusResult(
-        hasRunningContent: false,
-        runningContents: [],
-        error: 'Unknown device',
-      );
-    }
-
-    try {
-      final res = await http.get(Uri.parse('$base/status')).timeout(timeout);
-
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        return DeviceStatusResult(
-          hasRunningContent: data['any_running'] as bool? ?? false,
-          runningContents: List<String>.from(
-            data['running_contents'] as List? ?? [],
-          ),
-          error: null,
-        );
-      } else {
-        return DeviceStatusResult(
-          hasRunningContent: false,
-          runningContents: [],
-          error: 'Status check failed',
-        );
-      }
-    } catch (e) {
-      return DeviceStatusResult(
-        hasRunningContent: false,
-        runningContents: [],
-        error: 'Error: $e',
-      );
-    }
-  }
-
   static Future<DeviceClientIPResult> getClientIP(String device) async {
     final base = getBaseUrl(device);
     if (base.isEmpty) {
@@ -589,18 +551,6 @@ class DeviceStopResult {
   final Map<String, dynamic>? data;
 
   DeviceStopResult({required this.success, required this.message, this.data});
-}
-
-class DeviceStatusResult {
-  final bool hasRunningContent;
-  final List<String> runningContents;
-  final String? error;
-
-  DeviceStatusResult({
-    required this.hasRunningContent,
-    required this.runningContents,
-    this.error,
-  });
 }
 
 class DeviceClientIPResult {

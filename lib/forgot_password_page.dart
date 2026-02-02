@@ -50,11 +50,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+
+      if (!mounted) return;
       showErrorDialog("Password reset email sent. Check your inbox.");
 
       await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
       Navigator.pop(context);
-    } 
+    }
     on FirebaseAuthException catch (e) {
       String message;
 
@@ -68,10 +71,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         default:
           message = e.message ?? "Failed to send reset email";
       }
+
+      if (!mounted) return;
       showErrorDialog(message);
-    } 
+    }
     finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

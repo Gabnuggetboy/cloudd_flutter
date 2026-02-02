@@ -50,45 +50,6 @@ class QueueService extends ChangeNotifier {
   String? getQueuedContent(String device) =>
       getDeviceState(device).queuedContent;
 
-  // Get queue position for a device
-  int getQueuePosition(String device) => getDeviceState(device).queuePosition;
-
-  //Check if it's user's turn for a device
-  bool isUsersTurn(String device) => getDeviceState(device).isUsersTurn;
-
-  // Get running content for a device
-  String? getRunningContent(String device) =>
-      getDeviceState(device).runningContent;
-
-  // Get running content icon URL for a device
-  String? getRunningContentIconUrl(String device) =>
-      getDeviceState(device).runningContentIconUrl;
-
-  // Check if user has any queued content across all devices
-  bool get hasAnyQueuedContent =>
-      _deviceStates.values.any((s) => s.hasQueuedContent);
-
-  // Check if user has any running content across all devices
-  bool get hasAnyRunningContent =>
-      _deviceStates.values.any((s) => s.hasRunningContent);
-
-  // Get map of all queued content (for navigation)
-  Map<String, String?> get allQueuedContent => {
-    for (final device in devices) device: getQueuedContent(device),
-  };
-
-  // Get map of all running start times
-  Map<String, DateTime?> get allRunningStartTimes => {
-    for (final device in devices)
-      device: getDeviceState(device).runningStartTime,
-  };
-
-  /// Get map of all running recent doc IDs
-  Map<String, String?> get allRunningRecentDocIds => {
-    for (final device in devices)
-      device: getDeviceState(device).runningRecentDocId,
-  };
-
   // INITIALIZATIONS
 
   // Initialize the service and fetch current client IP
@@ -127,6 +88,41 @@ class QueueService extends ChangeNotifier {
     notifyListeners();
   }
 
+  DeviceQueueState _clearQueuedState(DeviceQueueState state) {
+    return state.copyWith(
+      clearQueuedContent: true,
+      clearQueuedBoothName: true,
+      clearQueuedLogoUrl: true,
+      clearQueuedExperienceId: true,
+      clearQueuedExperienceName: true,
+    );
+  }
+
+  DeviceQueueState _clearRunningState(DeviceQueueState state) {
+    return state.copyWith(
+      clearRunningContent: true,
+      clearRunningContentIconUrl: true,
+      clearRunningClientIP: true,
+      clearRunningStartTime: true,
+      clearRunningRecentDocId: true,
+    );
+  }
+
+  DeviceQueueState _clearRunningContentState(DeviceQueueState state) {
+    return state.copyWith(
+      clearRunningContent: true,
+      clearRunningContentIconUrl: true,
+    );
+  }
+
+  bool _isUsersTurn({
+    required int queuePosition,
+    required String? queuedContent,
+    required bool isRunningByThisClient,
+  }) {
+    return (queuePosition == 0 && queuedContent != null) || isRunningByThisClient;
+  }
+
   //QUEUE OPERATIONS
 
   // Enqueue the user for a device with specific content
@@ -135,6 +131,8 @@ class QueueService extends ChangeNotifier {
     String contentName, {
     String? boothName,
     String? logoUrl,
+    String? experienceId,
+    String? experienceName,
   }) async {
     try {
       final result = await DeviceLoadingService.enqueueDevice(device);
@@ -146,6 +144,8 @@ class QueueService extends ChangeNotifier {
             queuedContent: contentName,
             queuedBoothName: boothName ?? contentName,
             queuedLogoUrl: logoUrl,
+            queuedExperienceId: experienceId,
+            queuedExperienceName: experienceName,
             isAutoLaunchActive: true,
             hasAutoLaunched: false,
           ),
@@ -169,10 +169,7 @@ class QueueService extends ChangeNotifier {
         final currentState = getDeviceState(device);
         _updateDeviceState(
           device,
-          currentState.copyWith(
-            clearQueuedContent: true,
-            clearQueuedBoothName: true,
-            clearQueuedLogoUrl: true,
+          _clearQueuedState(currentState).copyWith(
             isAutoLaunchActive: false,
             hasAutoLaunched: false,
             queuePosition: -1,
@@ -360,15 +357,7 @@ class QueueService extends ChangeNotifier {
         // Clear running state
         _updateDeviceState(
           device,
-          currentState.copyWith(
-            clearRunningContent: true,
-            clearRunningContentIconUrl: true,
-            clearRunningClientIP: true,
-            clearRunningStartTime: true,
-            clearRunningRecentDocId: true,
-            clearQueuedContent: true,
-            clearQueuedBoothName: true,
-            clearQueuedLogoUrl: true,
+          _clearQueuedState(_clearRunningState(currentState)).copyWith(
             isUsersTurn: false,
             hasAutoLaunched: false,
             isAutoLaunchActive: false,
@@ -442,6 +431,8 @@ class QueueService extends ChangeNotifier {
             latestState.queuedContent!,
             boothName: latestState.queuedBoothName,
             logoUrl: latestState.queuedLogoUrl,
+            experienceId: latestState.queuedExperienceId,
+            experienceName: latestState.queuedExperienceName,
           );
         } else {
           // Not yet user's turn, check again
@@ -522,10 +513,11 @@ class QueueService extends ChangeNotifier {
         }
 
         // Calculate new turn status
-        final newIsUsersTurn =
-            (positionResult.queuePosition == 0 &&
-                currentState.queuedContent != null) ||
-            isRunningByThisClient;
+        final newIsUsersTurn = _isUsersTurn(
+          queuePosition: positionResult.queuePosition,
+          queuedContent: currentState.queuedContent,
+          isRunningByThisClient: isRunningByThisClient,
+        );
 
         // Check if we should update
         final runningContentChanged =
@@ -554,10 +546,7 @@ class QueueService extends ChangeNotifier {
 
             if (runningContentChanged) {
               if (infoResult.runningContent == null) {
-                newState = newState.copyWith(
-                  clearRunningContent: true,
-                  clearRunningContentIconUrl: true,
-                );
+                newState = _clearRunningContentState(newState);
               } else {
                 newState = newState.copyWith(
                   runningContent: infoResult.runningContent,
@@ -569,22 +558,15 @@ class QueueService extends ChangeNotifier {
 
           // If user's queued content was running and is now stopped, clear it
           if (isUserContentNowStopped && !newIsUsersTurn) {
-            newState = newState.copyWith(
-              clearQueuedContent: true,
-              clearQueuedBoothName: true,
-              clearQueuedLogoUrl: true,
+            newState = _clearQueuedState(_clearRunningContentState(newState))
+                .copyWith(
               hasAutoLaunched: false,
-              clearRunningContent: true,
-              clearRunningContentIconUrl: true,
             );
           }
 
           // If not in queue anymore, clear stale queued content
           if (positionResult.queuePosition == -1 && !isRunningByThisClient) {
-            newState = newState.copyWith(
-              clearQueuedContent: true,
-              clearQueuedBoothName: true,
-              clearQueuedLogoUrl: true,
+            newState = _clearQueuedState(newState).copyWith(
               hasAutoLaunched: false,
             );
           }
@@ -602,6 +584,8 @@ class QueueService extends ChangeNotifier {
             currentState.queuedContent!,
             boothName: currentState.queuedBoothName,
             logoUrl: currentState.queuedLogoUrl,
+            experienceId: currentState.queuedExperienceId,
+            experienceName: currentState.queuedExperienceName,
           );
         }
 
@@ -711,10 +695,11 @@ class QueueService extends ChangeNotifier {
           launchedStatus.clientIP == _currentClientIP &&
           launchedStatus.status == 'content_running';
 
-      final bool turnNow =
-          (positionResult.queuePosition == 0 &&
-              currentState.queuedContent != null) ||
-          isRunningByThisClient;
+      final bool turnNow = _isUsersTurn(
+        queuePosition: positionResult.queuePosition,
+        queuedContent: currentState.queuedContent,
+        isRunningByThisClient: isRunningByThisClient,
+      );
 
       DeviceQueueState newState = currentState.copyWith(
         queuePosition: positionResult.queuePosition,
@@ -726,10 +711,7 @@ class QueueService extends ChangeNotifier {
 
       // Clear stale queued content if not in queue
       if (positionResult.queuePosition == -1 && !isRunningByThisClient) {
-        newState = newState.copyWith(
-          clearQueuedContent: true,
-          clearQueuedBoothName: true,
-          clearQueuedLogoUrl: true,
+        newState = _clearQueuedState(newState).copyWith(
           hasAutoLaunched: false,
         );
       }
@@ -746,6 +728,8 @@ class QueueService extends ChangeNotifier {
           currentState.queuedContent!,
           boothName: currentState.queuedBoothName,
           logoUrl: currentState.queuedLogoUrl,
+          experienceId: currentState.queuedExperienceId,
+          experienceName: currentState.queuedExperienceName,
         );
       }
     } catch (e) {
@@ -765,10 +749,7 @@ class QueueService extends ChangeNotifier {
           if (positionResult.queuePosition == -1) {
             _updateDeviceState(
               device,
-              currentState.copyWith(
-                clearQueuedContent: true,
-                clearQueuedBoothName: true,
-                clearQueuedLogoUrl: true,
+              _clearQueuedState(currentState).copyWith(
                 isAutoLaunchActive: false,
               ),
             );

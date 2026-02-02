@@ -76,7 +76,7 @@ class ManagerAccountPage extends StatelessWidget {
                                 size: 70,
                                 color: Theme.of(
                                   context,
-                                ).iconTheme.color?.withOpacity(0.6),
+                                ).iconTheme.color?.withValues(alpha: 153),
                               )
                             : null,
                       ),

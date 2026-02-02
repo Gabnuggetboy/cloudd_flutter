@@ -10,12 +10,12 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   Future<void> deleteAccount(BuildContext context) async {
-  print("DEBUG: Starting account deletion");
 
   try {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No user logged in")),
       );
@@ -38,7 +38,6 @@ class SettingsPage extends StatelessWidget {
     }
 
     await batch.commit();
-    print("DEBUG: Deleted ${experiencesSnapshot.docs.length} experiences");
 
     await firestore.collection("users").doc(uid).delete();
 
@@ -47,9 +46,9 @@ class SettingsPage extends StatelessWidget {
     NavigationService.pushAndRemoveUntil(LoginPage());
 
   } catch (e) {
-    print("DEBUG: Error deleting account: $e");
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error deleting account")),
+      const SnackBar(content: Text("Error deleting account")),
     );
   }
 }
@@ -158,6 +157,7 @@ class SettingsPage extends StatelessWidget {
               "Logout",
               onTap: () async {
                 await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => LoginPage()),
@@ -196,6 +196,7 @@ class SettingsPage extends StatelessWidget {
                         ),
                         TextButton(
                           onPressed: () async {
+                            
                             Navigator.pop(context); // Close the confirmation dialog
                             try {
                               await deleteAccount(context);

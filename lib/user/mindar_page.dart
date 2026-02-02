@@ -12,7 +12,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'package:firebase_storage/firebase_storage.dart';
 
-import 'package:cloudd_flutter/models/AR_Assets.dart';
+import 'package:cloudd_flutter/models/ar_assets.dart';
 
 class MindARPage extends StatefulWidget {
   const MindARPage({super.key});

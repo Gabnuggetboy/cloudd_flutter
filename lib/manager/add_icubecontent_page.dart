@@ -5,13 +5,13 @@ import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/models/manager_content_selection.dart';
 
 //THIS PAGE IS NOT IN USE, REPLACED BY add_content_page.dart
-class iCubeTestPage extends StatefulWidget {
+class AddIcubecontentPage extends StatefulWidget {
   final bool selectionMode;
   final String? managerId;
   final String? experienceId;
   final List<String>? initialSelectedContents;
 
-  const iCubeTestPage({
+  const AddIcubecontentPage({
     super.key,
     this.selectionMode = false,
     this.managerId,
@@ -20,10 +20,10 @@ class iCubeTestPage extends StatefulWidget {
   });
 
   @override
-  State<iCubeTestPage> createState() => _iCubeTestPageState();
+  State<AddIcubecontentPage> createState() => _AddIcubecontentPageState();
 }
 
-class _iCubeTestPageState extends State<iCubeTestPage> {
+class _AddIcubecontentPageState extends State<AddIcubecontentPage> {
   List<dynamic> contents = [];
   bool isLoading = true;
   String? errorMessage;
@@ -300,7 +300,7 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
                             ),
                             if (isSelected)
                               Container(
-                                color: Colors.black.withOpacity(0.5),
+                                color: Colors.black.withValues(alpha: 128),
                                 child: const Center(
                                   child: Icon(
                                     Icons.check_circle,
@@ -353,10 +353,10 @@ class _iCubeTestPageState extends State<iCubeTestPage> {
             ? [
                 TextButton(
                   onPressed: () async {
+                    final navigator = Navigator.of(context);
                     await _saveSelectedContents();
-                    if (mounted) {
-                      Navigator.pop(context, selectedContents.toList());
-                    }
+                    if (!context.mounted) return;
+                    navigator.pop(selectedContents.toList());
                   },
                   child: const Text(
                     'Done',

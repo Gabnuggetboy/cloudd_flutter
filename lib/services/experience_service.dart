@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -188,64 +187,9 @@ class ExperienceService {
         .toList();
   }
 
-  Future<void> addBooth(String experienceId, Map<String, dynamic> booth) async {
-    await _experiences.doc(experienceId).update({
-      'booths': FieldValue.arrayUnion([booth]),
-      'last_updated': Timestamp.now(),
-    });
-  }
-
-  Future<void> removeBooth(
-    String experienceId,
-    Map<String, dynamic> booth,
-  ) async {
-    await _experiences.doc(experienceId).update({
-      'booths': FieldValue.arrayRemove([booth]),
-      'last_updated': Timestamp.now(),
-    });
-  }
-
-  Stream<List<Experience>> getUserExperiences() {
-    return _experiences.where('owner.uid', isEqualTo: _uid).snapshots().asyncMap((
-      snap,
-    ) async {
-      final ownExperiences = snap.docs.map(Experience.fromDoc).toList();
-
-      // Also get experiences where user is a collaborator (by checking collaborators array)
-      final allSnap = await _experiences.get();
-      final collabExperiences = allSnap.docs.map(Experience.fromDoc).where((
-        exp,
-      ) {
-        // Check if current user is in collaborators with accepted status
-        return exp.collaborators.any((c) {
-          final cUid = c['uid'] as String?;
-          final status = c['status'] as String?;
-          return cUid == _uid && status == 'accepted';
-        });
-      }).toList();
-
-      // Combine both lists, removing duplicates
-      final allExperiences = <String, Experience>{};
-      for (var exp in ownExperiences) {
-        allExperiences[exp.id] = exp;
-      }
-      for (var exp in collabExperiences) {
-        allExperiences[exp.id] = exp;
-      }
-
-      return allExperiences.values.toList();
-    });
-  }
-
   Future<Experience?> getExperience(String id) async {
     final doc = await _experiences.doc(id).get();
     return doc.exists ? Experience.fromDoc(doc) : null;
-  }
-
-  Stream<Experience?> getExperienceStream(String id) {
-    return _experiences.doc(id).snapshots().map((doc) {
-      return doc.exists ? Experience.fromDoc(doc) : null;
-    });
   }
 
   /// Accept a collaborator invitation for an experience

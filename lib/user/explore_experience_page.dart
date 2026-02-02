@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:cloudd_flutter/manager/add_icubecontent_page.dart';
-import 'package:cloudd_flutter/manager/add_irigcontent_page.dart';
 import 'package:cloudd_flutter/webapp_access_page.dart';
 import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/services/image_caching_service.dart';
@@ -490,25 +488,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                                   ? '$baseUrl${matched!['icon_url']}'
                                   : null,
                             );
-                          } else {
-                            if (device == 'iCube') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      iCubeTestPage(selectionMode: false),
-                                ),
-                              );
-                            } else if (device == 'iRig') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      IrigTestPage(selectionMode: false),
-                                ),
-                              );
-                            }
-                          }
+                          } 
                         },
                         style: ElevatedButton.styleFrom(
                           minimumSize: buttonSize,
@@ -636,6 +616,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
             }
 
             if (hasRunning) {
+              final navigator = Navigator.of(context);
               final stopAll = await showDialog<bool>(
                 context: context,
                 builder: (_) => AlertDialog(
@@ -656,6 +637,7 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                   ],
                 ),
               );
+              if (!context.mounted) return;
 
               if (stopAll == true) {
                 for (final device in QueueService.devices) {
@@ -670,9 +652,8 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                     );
                   }
                 }
-                if (mounted) {
-                  Navigator.pop(context);
-                }
+                if (!context.mounted) return;
+                navigator.pop();
               }
             }
           },
@@ -714,11 +695,13 @@ class _ExploreExperiencePageState extends State<ExploreExperiencePage> {
                         onPressed: () async {
                           if (isSignedUp) {
                             await cancelSignUp(signupDocId!);
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Signup cancelled')),
                             );
                           } else {
                             await signUp();
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Successfully signed up'),

@@ -13,7 +13,7 @@ class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
 
   @override
-  _SignUpPageState createState() => _SignUpPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
 class _SignUpPageState extends State<SignUpPage> {
@@ -50,7 +50,7 @@ class _SignUpPageState extends State<SignUpPage> {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 13),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -232,7 +232,6 @@ class _SignUpPageState extends State<SignUpPage> {
       child: Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        child: Container(
           child: Column(
             children: <Widget>[
               Container(
@@ -601,7 +600,6 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
             ],
           ),
-        ),
       ),
       ),
     );

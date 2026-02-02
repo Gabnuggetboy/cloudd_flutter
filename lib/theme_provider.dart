@@ -31,7 +31,6 @@ class ThemeProvider extends ChangeNotifier {
         _isDarkMode = false;
       }
     } catch (e) {
-      print("DEBUG: Error loading theme preference: $e");
       _isDarkMode = false;
     }
 
@@ -58,7 +57,6 @@ class ThemeProvider extends ChangeNotifier {
     final user = _auth.currentUser;
 
     if (user == null) {
-      print("DEBUG: No user logged in, cannot save theme preference");
       return;
     }
 
@@ -67,7 +65,7 @@ class ThemeProvider extends ChangeNotifier {
         'isDarkMode': _isDarkMode,
       });
     } catch (e) {
-      print("DEBUG: Error saving theme preference: $e");
+      // nothing
     }
   }
 }

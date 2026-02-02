@@ -10,11 +10,11 @@ class Experience {
   final String? imageUrl;
   final bool enabled;
   final String? managerId;
-  final Map<String, dynamic>? owner; 
+  final Map<String, dynamic>? owner;
   final Timestamp? createdAt;
   final Timestamp? lastUpdated;
   final List<Map<String, dynamic>> booths;
-  final List<Map<String, dynamic>> collaborators; 
+  final List<Map<String, dynamic>> collaborators;
 
   Experience({
     required this.id,

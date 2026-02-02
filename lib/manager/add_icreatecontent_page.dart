@@ -4,13 +4,13 @@ import 'package:cloudd_flutter/services/device_loading_service.dart';
 import 'package:cloudd_flutter/models/manager_content_selection.dart';
 
 //THIS PAGE IS NOT IN USE, REPLACED BY add_content_page.dart
-class iCreateTestPage extends StatefulWidget {
+class AddiCreateContentPage extends StatefulWidget {
   final bool selectionMode;
   final String? managerId;
   final String? experienceId;
   final List<String>? initialSelectedContents;
 
-  const iCreateTestPage({
+  const AddiCreateContentPage({
     super.key,
     this.selectionMode = true,
     this.managerId,
@@ -19,10 +19,10 @@ class iCreateTestPage extends StatefulWidget {
   });
 
   @override
-  State<iCreateTestPage> createState() => _iCreateTestPageState();
+  State<AddiCreateContentPage> createState() => _AddiCreateContentPageState();
 }
 
-class _iCreateTestPageState extends State<iCreateTestPage> {
+class _AddiCreateContentPageState extends State<AddiCreateContentPage> {
   List<dynamic> contents = [];
   bool isLoading = true;
   String? errorMessage;
@@ -133,10 +133,10 @@ class _iCreateTestPageState extends State<iCreateTestPage> {
         actions: [
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await _saveSelectedContents();
-              if (mounted) {
-                Navigator.pop(context, selectedContents.toList());
-              }
+              if (!context.mounted) return;
+              navigator.pop(selectedContents.toList());
             },
             child: const Text(
               'Done',
@@ -283,9 +283,7 @@ class _iCreateTestPageState extends State<iCreateTestPage> {
                                         ),
                                         if (isSelected)
                                           Container(
-                                            color: Colors.black.withOpacity(
-                                              0.5,
-                                            ),
+                                            color: Colors.black.withValues(alpha: 128),
                                             child: const Center(
                                               child: Icon(
                                                 Icons.check_circle,

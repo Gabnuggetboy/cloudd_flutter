@@ -432,7 +432,7 @@ class _ExperienceDetailsPageState extends State<ExperienceDetailsPage> {
 
                 // Category
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   decoration: const InputDecoration(
                     labelText: "Category",
                     border: OutlineInputBorder(),

@@ -148,7 +148,9 @@ class RecentlyPlayedService {
   static Future<void> clearForUser(String userId) async {
     final snap = await _userCol(userId).get();
     final batch = FirebaseFirestore.instance.batch();
-    for (final doc in snap.docs) batch.delete(doc.reference);
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
     await batch.commit();
   }
 }

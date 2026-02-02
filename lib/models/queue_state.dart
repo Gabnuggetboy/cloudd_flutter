@@ -8,6 +8,12 @@ class DeviceQueueState {
   // The logo URL for the queued content
   final String? queuedLogoUrl;
 
+  // The experience ID associated with the queued content
+  final String? queuedExperienceId;
+
+  // The experience name associated with the queued content
+  final String? queuedExperienceName;
+
   // The user's position in the queue (0 = their turn, -1 = not in queue)
   final int queuePosition;
 
@@ -42,6 +48,8 @@ class DeviceQueueState {
     this.queuedContent,
     this.queuedBoothName,
     this.queuedLogoUrl,
+    this.queuedExperienceId,
+    this.queuedExperienceName,
     this.queuePosition = -1,
     this.isUsersTurn = false,
     this.hasAutoLaunched = false,
@@ -65,6 +73,10 @@ class DeviceQueueState {
     bool clearQueuedBoothName = false,
     String? queuedLogoUrl,
     bool clearQueuedLogoUrl = false,
+    String? queuedExperienceId,
+    bool clearQueuedExperienceId = false,
+    String? queuedExperienceName,
+    bool clearQueuedExperienceName = false,
     int? queuePosition,
     bool? isUsersTurn,
     bool? hasAutoLaunched,
@@ -91,6 +103,12 @@ class DeviceQueueState {
       queuedLogoUrl: clearQueuedLogoUrl
           ? null
           : (queuedLogoUrl ?? this.queuedLogoUrl),
+      queuedExperienceId: clearQueuedExperienceId
+          ? null
+          : (queuedExperienceId ?? this.queuedExperienceId),
+      queuedExperienceName: clearQueuedExperienceName
+          ? null
+          : (queuedExperienceName ?? this.queuedExperienceName),
       queuePosition: queuePosition ?? this.queuePosition,
       isUsersTurn: isUsersTurn ?? this.isUsersTurn,
       hasAutoLaunched: hasAutoLaunched ?? this.hasAutoLaunched,
@@ -113,12 +131,6 @@ class DeviceQueueState {
           : (runningRecentDocId ?? this.runningRecentDocId),
     );
   }
-
-  // Whether the user has any content queued for this device
-  bool get hasQueuedContent => queuedContent != null;
-
-  // Whether there is any content running on this device
-  bool get hasRunningContent => runningContent != null;
 
   @override
   String toString() {

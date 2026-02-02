@@ -298,7 +298,7 @@ class _AddContentPageState extends State<AddContentPage> {
                       _buildFallbackThumb(),
                     if (selected)
                       Container(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 128),
                         child: const Center(
                           child: Icon(
                             Icons.check_circle,
@@ -443,9 +443,10 @@ class _AddContentPageState extends State<AddContentPage> {
         actions: [
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await _saveSelections();
-              if (!mounted) return;
-              Navigator.pop(context, _buildResultMap());
+              if (!context.mounted) return;
+              navigator.pop(_buildResultMap());
             },
             style: TextButton.styleFrom(foregroundColor: appBarActionColor),
             child: const Text('Done'),

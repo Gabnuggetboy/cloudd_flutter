@@ -39,7 +39,7 @@ class _WorkInProgressPageState extends State<WorkInProgressPage> {
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: colors.primary.withOpacity(0.12),
+                  color: colors.primary.withValues(alpha: 31),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -66,7 +66,7 @@ class _WorkInProgressPageState extends State<WorkInProgressPage> {
                 "We're actively building this feature.\nCheck back soon for something awesome!",
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurface.withOpacity(0.7),
+                  color: colors.onSurface.withValues(alpha: 179),
                   height: 1.6,
                 ),
               ),
@@ -77,14 +77,14 @@ class _WorkInProgressPageState extends State<WorkInProgressPage> {
                 children: [
                   LinearProgressIndicator(
                     minHeight: 6,
-                    backgroundColor: colors.surfaceVariant,
+                    backgroundColor: colors.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     "Development in progress",
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurface.withOpacity(0.6),
+                      color: colors.onSurface.withValues(alpha: 153),
                     ),
                   ),
                 ],

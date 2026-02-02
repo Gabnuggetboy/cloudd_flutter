@@ -25,9 +25,6 @@ void main() async {
   // Initialize QueueService
   await QueueService().initialize();
 
-  // Initialize QueueService
-  await QueueService().initialize();
-
   await FirebaseAppCheck.instance.activate(
     androidProvider: kDebugMode
         ? AndroidProvider.debug
