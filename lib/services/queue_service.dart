@@ -41,7 +41,7 @@ class QueueService extends ChangeNotifier {
   // Get the current client IP
   String? get currentClientIP => _currentClientIP;
 
-  // Get state for a specific device
+  // Get state for a specific device55
   DeviceQueueState getDeviceState(String device) {
     return _deviceStates[device] ?? DeviceQueueState.initial();
   }
@@ -61,24 +61,38 @@ class QueueService extends ChangeNotifier {
     await _fetchCurrentClientIP();
   }
 
-  /// Fetch the current client IP from the backend
-  Future<void> _fetchCurrentClientIP() async {
-    try {
-      final result = await DeviceLoadingService.getClientIP('iCube');
-      if (result.error == null && result.clientIP != null) {
-        _currentClientIP = result.clientIP;
-        notifyListeners();
+//----
+  /// Fetch the current client IP from the backend.
+  /// Tries each device in order until one responds successfully.
+  /// If [preferredDevice] is provided, it is tried first.
+  Future<void> _fetchCurrentClientIP({String? preferredDevice}) async {
+    // Build device order: preferred device first, then the rest
+    final deviceOrder = <String>[
+      if (preferredDevice != null) preferredDevice,
+      ...devices.where((d) => d != preferredDevice),
+    ];
+
+    for (final device in deviceOrder) {
+      try {
+        final result = await DeviceLoadingService.getClientIP(device);
+        if (result.error == null && result.clientIP != null) {
+          _currentClientIP = result.clientIP;
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        debugPrint('QueueService: Error getting client IP from $device: $e');
       }
-    } catch (e) {
-      debugPrint('QueueService: Error getting client IP: $e');
     }
+    debugPrint('QueueService: Could not get client IP from any device');
   }
 
-  /// Refresh client IP (call when switching devices or after launch)
-  Future<void> refreshClientIP() async {
-    await _fetchCurrentClientIP();
+  /// Refresh client IP (call when switching devices or after launch).
+  /// If [device] is provided, that device's server is tried first.
+  Future<void> refreshClientIP({String? device}) async {
+    await _fetchCurrentClientIP(preferredDevice: device);
   }
-
+//----
   //STATE UPDATES
 
   // Update state for a specific device
@@ -262,8 +276,8 @@ class QueueService extends ChangeNotifier {
       );
 
       if (result.success) {
-        // Refresh client IP after successful launch
-        await refreshClientIP();
+        // Refresh client IP after successful launch (prefer the device we just launched on)
+        await refreshClientIP(device: device);
 
         // Icon URL for recently played
         final iconUrl = logoUrl;
@@ -479,6 +493,18 @@ class QueueService extends ChangeNotifier {
 
         if (!_isPolling || _pollingDevice != device) return;
 
+        // Skip update if any API call returned an error (transient failure).
+        // This prevents clearing running state on timeouts/connection issues.
+        if (positionResult.error != null ||
+            infoResult.error != null ||
+            launchedStatus.error != null) {
+          debugPrint(
+            'QueueService: Skipping poll update for $device due to API error',
+          );
+          await Future.delayed(const Duration(seconds: 2));
+          continue;
+        }
+
         final currentState = getDeviceState(device);
         final now = DateTime.now();
 
@@ -620,6 +646,10 @@ class QueueService extends ChangeNotifier {
             device,
           );
           final currentState = getDeviceState(device);
+
+          // Skip update on API errors — don't clear running state on
+          // transient failures (timeout, connection refused, etc.)
+          if (status.error != null) return;
 
           // Skip if recently updated locally
           final lastUpdate = _lastStateUpdateTime[device];
